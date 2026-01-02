@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { parseEther, formatEther } from 'viem';
+import { parseEther } from 'viem';
 import { useFAOContract, FAO_SALE_ADDRESS } from '../hooks/useFAOContract';
 import { useApproveAndCall } from '../hooks/useApproveAndCall';
 import { useETHPrice } from '../hooks/useETHPrice';
@@ -58,8 +58,8 @@ export default function BuyPanel() {
     ];
 
     return (
-        <div className="flex flex-col gap-8 w-full relative overflow-hidden p-6 border transition-colors duration-700 bg-black border-white/10">
-            <div className="flex justify-between items-center border-b pb-4 border-white">
+        <div className="flex flex-col gap-6 sm:gap-8 w-full relative overflow-hidden p-4 sm:p-6 border transition-colors duration-700 bg-black border-white/10">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 border-b pb-4 border-white">
                 <h2 className="ico-header">BUY()</h2>
                 <div className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
@@ -67,7 +67,7 @@ export default function BuyPanel() {
                 </div>
             </div>
 
-            <p className="font-mono text-xs leading-relaxed border-l pl-4 italic transition-colors duration-700 text-white/60 border-white/20">
+            <p className="font-mono text-[11px] sm:text-xs leading-relaxed border-l pl-4 italic transition-colors duration-700 text-white/60 border-white/20">
                 DEPOSIT_COLLATERAL: Mints FAO tokens against the bonding reserve by calling the buy() function on the protocol sale contract.
             </p>
 
@@ -79,9 +79,9 @@ export default function BuyPanel() {
             )}
 
             <div className="flex flex-col gap-4">
-                <div className="flex justify-between items-end">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 sm:gap-0">
                     <label className="text-[10px] font-pixel uppercase tracking-[0.2em] text-white/40">PAY (ETH)</label>
-                    <div className="text-[10px] font-mono text-green-500/80">≈ ${usdValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</div>
+                    <div className="text-[10px] font-mono text-green-500/80">ƒ%^ ${usdValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</div>
                 </div>
                 <div className="relative group">
                     <input
@@ -90,7 +90,7 @@ export default function BuyPanel() {
                         onChange={(e) => setAmount(e.target.value)}
                         placeholder="0.00"
                         disabled={!saleContract || FAO_SALE_ADDRESS === "0x00000000000000000000000000000000"}
-                        className="w-full border p-6 text-4xl font-mono focus:outline-none transition-all duration-300 placeholder:text-white/10 bg-white/5 border-white/20 text-white focus:bg-white focus:text-black"
+                        className="w-full border p-4 sm:p-6 text-3xl sm:text-4xl font-mono focus:outline-none transition-all duration-300 placeholder:text-white/10 bg-white/5 border-white/20 text-white focus:bg-white focus:text-black"
                     />
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 font-pixel text-[10px] text-white/30 group-focus-within:text-black">ETH</div>
                 </div>
@@ -98,7 +98,7 @@ export default function BuyPanel() {
 
             <button
                 onClick={handleBuyClick}
-                className="w-full terminal-button py-8 text-lg font-bold hover:!bg-white hover:!text-black transition-all duration-500"
+                className="w-full terminal-button py-6 sm:py-8 text-base sm:text-lg font-bold hover:!bg-white hover:!text-black transition-all duration-500"
             >
                 {isHandling ? 'WAITING_FOR_CONFIRMATION...' : 'EXECUTE_BUY'}
             </button>

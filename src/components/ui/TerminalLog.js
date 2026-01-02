@@ -47,7 +47,7 @@ export function TerminalLog({ commands, onCommandSelect }) {
             {/* The Output Log */}
             <div
                 ref={scrollRef}
-                className="flex-1 overflow-y-auto space-y-6 mb-8 pr-4 scrollbar-hide"
+                className="flex-1 overflow-y-auto space-y-5 sm:space-y-6 mb-6 sm:mb-8 pr-2 sm:pr-4 scrollbar-hide"
             >
                 <AnimatePresence mode="popLayout">
                     {history.map((item, idx) => (
@@ -57,9 +57,9 @@ export function TerminalLog({ commands, onCommandSelect }) {
                             animate={{ opacity: 1, y: 0 }}
                             className={`${item.type === 'input' ? 'text-white/40' : 'text-white'}`}
                         >
-                            <div className="flex gap-6 items-start">
-                                <span className="opacity-20 text-[9px] whitespace-nowrap pt-1">[{item.time}]</span>
-                                <div className="flex-1">
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 items-start">
+                                <span className="opacity-20 text-[8px] sm:text-[9px] whitespace-nowrap sm:pt-1">[{item.time}]</span>
+                                <div className="flex-1 w-full">
                                     {item.type === 'input' ? (
                                         <span className="font-bold underline decoration-white/20 underline-offset-4">{item.text}</span>
                                     ) : (
@@ -79,11 +79,11 @@ export function TerminalLog({ commands, onCommandSelect }) {
             </div>
 
             {/* The Input Options (Monochrome Grid) */}
-            <div className="border-t border-white/10 pt-8 pb-4">
-                <div className="text-[10px] font-pixel mb-6 opacity-30 tracking-widest uppercase">
+            <div className="border-t border-white/10 pt-6 sm:pt-8 pb-4">
+                <div className="text-[9px] sm:text-[10px] font-pixel mb-4 sm:mb-6 opacity-30 tracking-widest uppercase">
                     SYSTEM_COMMAND_SELECTION:
                 </div>
-                <div className="flex flex-wrap gap-4">
+                <div className="flex flex-wrap gap-3 sm:gap-4">
                     {availableOptions.map((optId) => {
                         const opt = commands.find(c => c.id === optId);
                         if (!opt) return null;
@@ -91,7 +91,7 @@ export function TerminalLog({ commands, onCommandSelect }) {
                             <button
                                 key={opt.id}
                                 onClick={() => executeCommand(opt)}
-                                className="terminal-button"
+                                className="terminal-button w-full sm:w-auto text-center"
                             >
                                 [ {opt.label} ]
                             </button>

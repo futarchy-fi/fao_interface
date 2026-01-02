@@ -163,11 +163,11 @@ export default function Home() {
   return (
     <TerminalWrapper>
       <HeroLogo />
-      <div className="flex flex-col h-full gap-12 relative z-10">
+      <div className="flex flex-col h-full gap-8 md:gap-12 relative z-10">
         {/* Station Header */}
-        <header className="flex flex-col md:flex-row items-start md:items-center justify-between border-b border-white/10 pb-10 gap-8">
-          <div className="flex items-center gap-6">
-            <div className="w-16 h-16 grayscale brightness-200">
+        <header className="flex w-full flex-col md:flex-row items-start md:items-center justify-between border-b border-white/10 pb-6 md:pb-10 gap-6 md:gap-8">
+          <div className="flex items-center gap-4 md:gap-6">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 grayscale brightness-200">
               <AnimatedLogo />
             </div>
             <div className="flex flex-col">
@@ -175,15 +175,15 @@ export default function Home() {
               <span className="font-pixel text-xl tracking-tighter">FAO_PROTOTYPE_04</span>
             </div>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 md:gap-6 w-full md:w-auto">
             <ConnectWallet />
           </div>
         </header>
 
         {/* Main Interface Mixture */}
-        <div className="flex-1 flex flex-col lg:flex-row gap-16 min-h-0">
+        <div className="flex-1 flex flex-col lg:flex-row gap-10 lg:gap-16 min-h-0">
           {/* Left: Interactive AI System Log */}
-          <div className="flex-1 flex flex-col min-h-[500px]">
+          <div className="flex-1 flex flex-col min-h-[420px] md:min-h-[500px]">
             <TerminalLog
               commands={terminalCommands}
               onCommandSelect={handleCommand}
@@ -197,28 +197,28 @@ export default function Home() {
                 initial={{ opacity: 0, x: 50, filter: "blur(10px)" }}
                 animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
                 exit={{ opacity: 0, x: 50, filter: "blur(10px)" }}
-                className="lg:w-[500px] flex flex-col gap-8"
+                className="w-full lg:w-[420px] xl:w-[500px] flex flex-col gap-6 md:gap-8"
               >
                 <div className="flex border border-white/10 bg-white/5 p-1 mb-2">
                   <button
                     onClick={() => setTradeMode('buy')}
-                    className={`flex-1 py-3 font-pixel text-[10px] transition-all ${tradeMode === 'buy' ? 'bg-white text-black' : 'hover:bg-white/10 opacity-40'}`}
+                    className={`flex-1 py-2.5 sm:py-3 font-pixel text-[9px] sm:text-[10px] transition-all ${tradeMode === 'buy' ? 'bg-white text-black' : 'hover:bg-white/10 opacity-40'}`}
                   >
                     [ SECURE_FAO ]
                   </button>
                   <button
                     onClick={() => setTradeMode('exit')}
-                    className={`flex-1 py-3 font-pixel text-[10px] transition-all ${tradeMode === 'exit' ? 'bg-white text-black' : 'hover:bg-white/10 opacity-40'}`}
+                    className={`flex-1 py-2.5 sm:py-3 font-pixel text-[9px] sm:text-[10px] transition-all ${tradeMode === 'exit' ? 'bg-white text-black' : 'hover:bg-white/10 opacity-40'}`}
                   >
                     [ TERMINATE_NODE ]
                   </button>
                 </div>
 
-                <div className="bg-black border border-white shadow-[0_0_40px_rgba(255,255,255,0.05)] p-2">
+                <div className="bg-black border border-white shadow-[0_0_40px_rgba(255,255,255,0.05)] p-2 sm:p-3">
                   {tradeMode === 'buy' ? <BuyPanel /> : <RagequitPanel />}
                 </div>
 
-                <div className="p-6 border border-white/5 bg-white/2">
+                <div className="p-4 md:p-6 border border-white/5 bg-white/2">
                   <div className="font-pixel text-[8px] opacity-30 uppercase tracking-widest mb-4">_SYSTEM_WARNING</div>
                   <p className="font-mono text-[10px] leading-relaxed text-white/50">
                     TRANSACTIONS ARE IMMUTABLE. BY EXECUTING COMMANDS, YOU RECOGNIZE THE AUTONOMOUS NATURE OF THE FAO GOVERNANCE MODEL. NO CENTRAL AUTHORITY CAN REVERSE ON-CHAIN LOGIC.
@@ -230,8 +230,8 @@ export default function Home() {
         </div>
 
         {/* Status Bar */}
-        <footer className="h-16 border-t border-white/10 flex items-center justify-between px-2">
-          <div className="flex gap-10">
+        <footer className="min-h-[84px] border-t border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-2 px-2 sm:px-4 py-4 sm:py-0">
+          <div className="flex flex-wrap gap-6 sm:gap-10 w-full sm:w-auto">
             <div className="flex flex-col">
               <span className="text-[6px] font-pixel opacity-20 uppercase tracking-widest mb-1">D-INTELLIGENCE_NODE</span>
               <span className="text-[10px] font-mono text-white/60">NODE_0x1F...42E: CONNECTED</span>
@@ -241,8 +241,8 @@ export default function Home() {
               <span className="text-[10px] font-mono text-white/60">0.038ms</span>
             </div>
           </div>
-          <div className="flex items-center gap-6">
-            <div className="text-[10px] font-mono opacity-20 hidden sm:block">STATION_OS_V4.2.0_KERN_X64</div>
+          <div className="flex items-center gap-4 sm:gap-6 w-full sm:w-auto justify-between sm:justify-end">
+            <div className="text-[9px] sm:text-[10px] font-mono opacity-20 hidden sm:block">STATION_OS_V4.2.0_KERN_X64</div>
             <div className="flex gap-2">
               <div className="w-1 h-3 bg-white" />
               <div className="w-1 h-3 bg-white/40" />

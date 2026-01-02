@@ -205,3 +205,19 @@ body {
     font-size: 1.75rem;
   }
 }
+
+@media (max-width: 640px) {
+  body {
+    font-size: 14px;
+  }
+
+  .terminal-button {
+    padding: 12px 14px;
+    font-size: 0.65rem;
+  }
+
+  .ico-header {
+    font-size: 1.5rem;
+    line-height: 1.1;
+  }
+}

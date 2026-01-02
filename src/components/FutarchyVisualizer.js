@@ -107,7 +107,7 @@ export default function FutarchyVisualizer() {
     return (
         <div className="relative w-full overflow-hidden bg-black">
             {/* HERO SIMULATOR SECTION */}
-            <div className="relative h-[500px] border-b border-white/5 flex flex-col items-center justify-center">
+            <div className="relative h-[340px] sm:h-[420px] md:h-[500px] border-b border-white/5 flex flex-col items-center justify-center">
                 {/* Background Branding */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
                     <span className="font-pixel text-[20vw] opacity-[0.02] leading-none text-white uppercase italic">SIMULATION</span>
@@ -123,7 +123,7 @@ export default function FutarchyVisualizer() {
                 </div>
 
                 {/* Simulation Canvas */}
-                <div className="w-full h-full max-w-7xl relative px-20">
+                <div className="w-full h-full max-w-7xl relative px-6 sm:px-10 md:px-20">
                     <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full opacity-60">
                         <defs>
                             <linearGradient id="simYes" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -146,7 +146,7 @@ export default function FutarchyVisualizer() {
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: 20 }}
-                                className="absolute top-8 right-8 z-30 pointer-events-none"
+                                className="absolute top-4 sm:top-6 md:top-8 right-4 sm:right-6 md:right-8 z-30 pointer-events-none"
                             >
                                 <div className={`flex items-center gap-6 px-8 py-4 bg-black/80 backdrop-blur-xl border-l-2 ${outcome === 'APPROVE' ? 'border-blue-500 shadow-[0_0_40px_rgba(59,130,246,0.1)]' : 'border-yellow-500 shadow-[0_0_40px_rgba(250,204,21,0.1)]'}`}>
                                     <div className="flex flex-col">
@@ -170,14 +170,14 @@ export default function FutarchyVisualizer() {
             </div>
 
             {/* MINIMALIST TICKER CAROUSEL */}
-            <div className="relative -mt-16 z-20 overflow-hidden py-10">
-                <div className="max-w-[1400px] mx-auto px-12">
-                    <div className="flex items-center gap-12 mb-6">
+            <div className="relative -mt-10 sm:-mt-12 md:-mt-16 z-20 overflow-hidden py-8 md:py-10">
+                <div className="max-w-[1400px] mx-auto px-4 sm:px-8 md:px-12">
+                    <div className="flex items-center gap-6 sm:gap-12 mb-4 sm:mb-6">
                         <div className="font-pixel text-[10px] text-white/30 tracking-[0.4em] uppercase whitespace-nowrap">/ PROPOSAL_QUEUE</div>
                         <div className="h-px bg-white/10 flex-1" />
                     </div>
 
-                    <div className="relative h-20 flex items-center">
+                    <div className="relative min-h-[64px] flex items-center">
                         <AnimatePresence mode="popLayout" initial={false}>
                             <div className="flex gap-4">
                                 {proposalQueue.map((p, idx) => (

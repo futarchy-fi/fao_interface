@@ -28,6 +28,7 @@ export default function Dashboard() {
     const [tradeMode, setTradeMode] = useState('buy');
     const [showCurveInfo, setShowCurveInfo] = useState(false);
     const [activeSection, setActiveSection] = useState('manifesto');
+    const [isMobile, setIsMobile] = useState(false);
 
     const sections = [
         { id: 'manifesto', label: '01 // GOVERNANCE_ARCHITECTURE' },
@@ -66,8 +67,15 @@ export default function Dashboard() {
         if (el) el.scrollIntoView({ behavior: 'smooth' });
     };
 
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth <= 768);
+        handleResize();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     return (
-        <div className="min-h-screen bg-black text-white selection:bg-white selection:text-black scroll-smooth flex flex-col">
+        <div className={`min-h-screen bg-black text-white selection:bg-white selection:text-black scroll-smooth flex flex-col ${isMobile ? 'pb-32' : 'pb-10'}`}>
             {/* REAL-TIME TOP TICKER */}
             <LiveTicker />
 
@@ -77,10 +85,10 @@ export default function Dashboard() {
             {/* Subtle Global Scanline Overlay */}
             <div className="fixed inset-0 pointer-events-none z-50 opacity-[0.03] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(255,255,255,0.25)_50%),linear-gradient(90deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02),rgba(255,255,255,0.06))] bg-[length:100%_2px,2px_100%]" />
 
-            <div className="max-w-[1800px] mx-auto px-6 lg:px-12 py-12 relative z-10 w-full">
+            <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-8 md:py-12 relative z-10 w-full">
                 {/* Website Header */}
-                <header className="flex flex-col gap-4 border-b border-white/10 pb-8 md:pb-12 mb-12 md:mb-16">
-                    <div className="flex items-center gap-3 sm:gap-4">
+                <header className="flex flex-col gap-4 border-b border-white/10 pb-6 md:pb-12 mb-10 md:mb-16">
+                    <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
                         <div className="w-10 h-10 sm:w-12 sm:h-12 grayscale brightness-200 cursor-pointer flex-shrink-0" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
                             <ConstructionLogo />
                         </div>
@@ -100,12 +108,12 @@ export default function Dashboard() {
                     </div>
 
                     {/* GLOBAL NAVIGATION TABS - now on its own row */}
-                    <nav className="flex flex-wrap items-center gap-1 bg-white/5 p-1 rounded-sm border border-white/5 w-full">
+                    <nav className="flex flex-wrap items-center gap-2 bg-white/5 p-1 rounded-sm border border-white/5 w-full">
                         {sections.map((s) => (
                             <button
                                 key={s.id}
                                 onClick={() => scrollTo(s.id)}
-                                className={`px-3 sm:px-4 py-2.5 font-pixel text-[8px] sm:text-[9px] transition-all whitespace-nowrap ${activeSection === s.id
+                                className={`px-3 sm:px-4 py-2 font-pixel text-[8px] sm:text-[9px] transition-all whitespace-nowrap ${activeSection === s.id
                                     ? 'bg-white text-black'
                                     : 'text-white/40 hover:text-white hover:bg-white/5'
                                     }`}
@@ -117,20 +125,20 @@ export default function Dashboard() {
                 </header>
 
                 {/* FULL-WIDTH HERO SECTION (BREAKING OUT OF SIDEBARS) */}
-                <section id="manifesto" className="scroll-mt-20 mb-20">
-                    <div className="relative w-full border border-white/20 bg-black group mb-12">
+                <section id="manifesto" className="scroll-mt-20 mb-16 md:mb-20">
+                    <div className="relative w-full border border-white/20 bg-black group mb-8 md:mb-12">
                         <FutarchyVisualizer />
                     </div>
 
                     <div className="space-y-6">
                         <ScrollTypingHeader text="PROTOCOL_GOVERNANCE_ARCHITECTURE" className="ico-header" />
-                        <div className="text-3xl xl:text-4xl font-mono leading-tight max-w-5xl text-white/90">
+                        <div className="text-2xl sm:text-3xl xl:text-4xl font-mono leading-tight max-w-5xl text-white/90">
                             <TypewriterText text="FAO IS AN AUTONOMOUS GOVERNANCE PROTOCOL POWERED BY CONDITIONAL TOKEN MARKETS. WE SEPARATE STRATEGIC VALUES FROM ANALYTICAL BELIEFS TO OPTIMIZE CAPITAL ALLOCATION VIA THE GNOSIS CONDITIONAL TOKEN FRAMEWORK (CTF)." speed={0.01} />
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10 pt-12 border-t border-white/10 mt-12">
-                        <div className="phase-card space-y-6 p-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 pt-10 md:pt-12 border-t border-white/10 mt-10 md:mt-12">
+                        <div className="phase-card space-y-6 p-5 md:p-8">
                             <div className="flex justify-between items-start">
                                 <div className="space-y-4">
                                     <h3 className="font-pixel text-sm flex items-center gap-3">
@@ -144,13 +152,13 @@ export default function Dashboard() {
                             </div>
                             <PhaseCountdown />
                         </div>
-                        <div className="phase-card space-y-6 p-8">
+                        <div className="phase-card space-y-6 p-5 md:p-8">
                             <div className="space-y-4">
                                 <h3 className="font-pixel text-sm text-white/40">PHASE_2: ALGORITHMIC_EXPANSION</h3>
                                 <p className="text-white/30 font-mono text-sm leading-relaxed">
                                     The mathematical expansion phase. Price increases proportionally with supply, following a predefined P = m * S + b slope.
                                 </p>
-                                <div className="h-20 w-full border border-white/5 bg-white/2 flex items-end px-4 py-2 gap-1 overflow-hidden relative">
+                                <div className="h-14 sm:h-16 md:h-20 w-full border border-white/5 bg-white/2 flex items-end px-3 sm:px-4 py-2 gap-1 overflow-hidden relative">
                                     {[...Array(20)].map((_, i) => (
                                         <div key={i} className="bg-white/10 flex-1" style={{ height: `${(i + 1) * 5}%` }} />
                                     ))}
@@ -172,7 +180,7 @@ export default function Dashboard() {
                                         initial={{ opacity: 0, height: 0 }}
                                         animate={{ opacity: 1, height: 'auto' }}
                                         exit={{ opacity: 0, height: 0 }}
-                                        className="p-8 border border-white bg-white/5 space-y-4 overflow-hidden"
+                                        className="p-6 md:p-8 border border-white bg-white/5 space-y-4 overflow-hidden"
                                     >
                                         <h4 className="font-pixel text-xs tracking-widest">EXPANSION_TECHNICAL_SPEC</h4>
                                         <p className="font-mono text-xs leading-relaxed text-white/60">
@@ -192,28 +200,28 @@ export default function Dashboard() {
                     </div>
                 </section>
 
-                <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_440px] xl:grid-cols-[minmax(0,1fr)_480px] gap-8 xl:gap-16 items-start">
-                    {/* MAIN SCROLLABLE CONTENT */}
-                    <main className="flex-1 min-w-0 space-y-40 pb-40">
-                        {/* SECTION 02: KNOWLEDGE_BASE */}
-                        <section id="intel" className="space-y-24 scroll-mt-20">
-                            <div className="space-y-4">
-                                <ScrollTypingHeader text="PROTOCOL_GOVERNANCE_INTEL" className="ico-header text-5xl" />
-                                <p className="opacity-40 font-pixel text-[8px] tracking-[0.4em] uppercase italic">// SOURCE: GOVERNANCE_OPERATING_MANUAL_V1.2</p>
-                            </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_440px] xl:grid-cols-[minmax(0,1fr)_480px] gap-8 xl:gap-16 items-start">
+                        {/* MAIN SCROLLABLE CONTENT */}
+                        <main className="flex-1 min-w-0 space-y-16 md:space-y-32 xl:space-y-40 pb-24 md:pb-32">
+                            {/* SECTION 02: KNOWLEDGE_BASE */}
+                            <section id="intel" className="space-y-16 md:space-y-24 scroll-mt-20">
+                                <div className="space-y-4">
+                                    <ScrollTypingHeader text="PROTOCOL_GOVERNANCE_INTEL" className="ico-header text-3xl sm:text-4xl lg:text-5xl" />
+                                    <p className="opacity-40 font-pixel text-[8px] tracking-[0.4em] uppercase italic">// SOURCE: GOVERNANCE_OPERATING_MANUAL_V1.2</p>
+                                </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                                {/* Core Concept */}
-                                <div className="space-y-8 p-10 border border-white/20 bg-white/[0.02]">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-full border border-blue-500/40 flex items-center justify-center font-pixel text-blue-500 text-xs">01</div>
-                                        <h3 className="font-pixel text-lg tracking-tighter">VALUES_VS_BELIEFS</h3>
-                                    </div>
-                                    <p className="font-mono text-white/60 leading-relaxed">
-                                        FUTARCHY TARGETS THE CORE INEFFICIENCY OF GOVERNANCE: THE BLURRING OF INTENT (VALUES) AND EXECUTION (BELIEFS).
-                                        IN OUR SYSTEM, <span className="text-white font-bold uppercase">HUMANS DECIDE THE TARGET OUTCOME</span> (E.G., TOKEN PRICE GROWTH),
-                                        WHILE <span className="text-white font-bold uppercase">MARKETS AGGREGATE INFORMATION</span> TO DETERMINE THE BEST PATH TO THAT OUTCOME.
-                                    </p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
+                                    {/* Core Concept */}
+                                    <div className="space-y-6 md:space-y-8 p-6 md:p-10 border border-white/20 bg-white/[0.02]">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 rounded-full border border-blue-500/40 flex items-center justify-center font-pixel text-blue-500 text-xs">01</div>
+                                            <h3 className="font-pixel text-lg tracking-tighter">VALUES_VS_BELIEFS</h3>
+                                        </div>
+                                        <p className="font-mono text-white/60 leading-relaxed text-sm md:text-base">
+                                            FUTARCHY TARGETS THE CORE INEFFICIENCY OF GOVERNANCE: THE BLURRING OF INTENT (VALUES) AND EXECUTION (BELIEFS).
+                                            IN OUR SYSTEM, <span className="text-white font-bold uppercase">HUMANS DECIDE THE TARGET OUTCOME</span> (E.G., TOKEN PRICE GROWTH),
+                                            WHILE <span className="text-white font-bold uppercase">MARKETS AGGREGATE INFORMATION</span> TO DETERMINE THE BEST PATH TO THAT OUTCOME.
+                                        </p>
                                     <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
                                         <div className="space-y-2">
                                             <div className="font-pixel text-[8px] opacity-30 uppercase tracking-widest">HUMAN_ROLE</div>
@@ -227,7 +235,7 @@ export default function Dashboard() {
                                 </div>
 
                                 {/* Counterfactual Worlds */}
-                                <div className="space-y-8 p-10 border border-white/10 bg-black">
+                                <div className="space-y-6 md:space-y-8 p-6 md:p-10 border border-white/10 bg-black">
                                     <div className="flex items-center gap-4">
                                         <div className="w-10 h-10 rounded-full border border-yellow-500/40 flex items-center justify-center font-pixel text-yellow-500 text-xs">02</div>
                                         <h3 className="font-pixel text-lg tracking-tighter">COUNTERFACTUAL_EXP</h3>
@@ -254,15 +262,15 @@ export default function Dashboard() {
                             </div>
 
                             {/* Deep Trading Logic */}
-                            <div className="p-12 border border-white/5 bg-white/[0.01] space-y-12">
+                            <div className="p-8 md:p-12 border border-white/5 bg-white/[0.01] space-y-10 md:space-y-12">
                                 <div className="max-w-3xl space-y-6">
                                     <h3 className="font-pixel text-2xl tracking-tighter uppercase leading-none">THE_GNOSIS_CONDITIONAL_FRAMEWORK</h3>
-                                    <p className="font-mono text-lg text-white/50 leading-relaxed uppercase">
-                                        SECURED BY THE INDUSTRY-STANDARD GNOSIS CONDITIONAL TOKEN FRAMEWORK (CTF) — THE SAME CRYPTOGRAPHIC ARCHITECTURE PROTECTING BILLIONS IN TVL.
+                                    <p className="font-mono text-base md:text-lg text-white/50 leading-relaxed uppercase">
+                                        SECURED BY THE INDUSTRY-STANDARD GNOSIS CONDITIONAL TOKEN FRAMEWORK (CTF) - THE SAME CRYPTOGRAPHIC ARCHITECTURE PROTECTING BILLIONS IN TVL.
                                     </p>
                                 </div>
 
-                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-12">
                                     <div className="space-y-4">
                                         <div className="font-pixel text-[8px] text-white/30 uppercase tracking-[0.3em]">/ COLLATERAL_SPLITTING</div>
                                         <p className="font-mono text-xs text-white/40 leading-relaxed lowercase">
@@ -283,7 +291,7 @@ export default function Dashboard() {
                                     </div>
                                 </div>
 
-                                <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row gap-12">
+                                <div className="pt-10 md:pt-12 border-t border-white/5 flex flex-col md:flex-row gap-8 md:gap-12">
                                     <div className="flex flex-col gap-2">
                                         <span className="font-pixel text-[8px] opacity-20 uppercase tracking-widest">SYSTEM_VERSION</span>
                                         <span className="font-mono text-xs opacity-60 italic">FAO_PROTOCOL_V4.2</span>
@@ -350,55 +358,57 @@ export default function Dashboard() {
                             <ActivityCarousel />
 
                             <div className="border border-white/10 overflow-hidden bg-white/2">
-                                <table className="w-full text-left font-mono text-[10px] md:text-xs">
-                                    <thead>
-                                        <tr className="border-b border-white/10 bg-white/5">
-                                            <th className="p-6 font-pixel text-[8px] opacity-40 uppercase">COMMAND</th>
-                                            <th className="p-6 font-pixel text-[8px] opacity-40 uppercase whitespace-nowrap">TRANSACTION HASH</th>
-                                            <th className="p-6 font-pixel text-[8px] opacity-40 uppercase">MAGNITUDE</th>
-                                            <th className="p-6 font-pixel text-[8px] opacity-40 uppercase whitespace-nowrap">TIME RELATIVE</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-white/5">
-                                        {realTransactions.map((tx, i) => (
-                                            <tr key={i} className="hover:bg-white/5 transition-colors group">
-                                                <td className="p-6 uppercase">
-                                                    <span className={`px-2 py-1 font-pixel text-[9px] ${tx.type === 'Buy' ? 'bg-blue-600 text-white' :
-                                                        tx.type === 'Ragequit' ? 'bg-red-600 text-white' :
-                                                            'bg-white text-black'
-                                                        }`}>
-                                                        {tx.type}
-                                                    </span>
-                                                </td>
-                                                <td className="p-6 font-mono opacity-60 group-hover:opacity-100 transition-opacity">
-                                                    {tx.hash.slice(0, 12)}...{tx.hash.slice(-12)}
-                                                </td>
-                                                <td className="p-6 font-black">{tx.val}</td>
-                                                <td className="p-6 opacity-40 whitespace-nowrap">{tx.time}</td>
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-[640px] w-full text-left font-mono text-[10px] md:text-xs">
+                                        <thead>
+                                            <tr className="border-b border-white/10 bg-white/5">
+                                                <th className="p-4 md:p-6 font-pixel text-[8px] opacity-40 uppercase">COMMAND</th>
+                                                <th className="p-4 md:p-6 font-pixel text-[8px] opacity-40 uppercase whitespace-nowrap">TRANSACTION HASH</th>
+                                                <th className="p-4 md:p-6 font-pixel text-[8px] opacity-40 uppercase">MAGNITUDE</th>
+                                                <th className="p-4 md:p-6 font-pixel text-[8px] opacity-40 uppercase whitespace-nowrap">TIME RELATIVE</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody className="divide-y divide-white/5">
+                                            {realTransactions.map((tx, i) => (
+                                                <tr key={i} className="hover:bg-white/5 transition-colors group">
+                                                    <td className="p-4 md:p-6 uppercase">
+                                                        <span className={`px-2 py-1 font-pixel text-[9px] ${tx.type === 'Buy' ? 'bg-blue-600 text-white' :
+                                                            tx.type === 'Ragequit' ? 'bg-red-600 text-white' :
+                                                                'bg-white text-black'
+                                                            }`}>
+                                                            {tx.type}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4 md:p-6 font-mono opacity-60 group-hover:opacity-100 transition-opacity">
+                                                        {tx.hash.slice(0, 12)}...{tx.hash.slice(-12)}
+                                                    </td>
+                                                    <td className="p-4 md:p-6 font-black">{tx.val}</td>
+                                                    <td className="p-4 md:p-6 opacity-40 whitespace-nowrap">{tx.time}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </section>
 
                         {/* SECTION 04: PARTICIPATION */}
-                        <section id="governance" className="scroll-mt-20 py-40 border-t border-white/10">
-                            <div className="max-w-4xl space-y-10">
-                                <h2 className="font-pixel text-4xl sm:text-5xl md:text-6xl tracking-tighter leading-tight break-words">
+                        <section id="governance" className="scroll-mt-20 py-24 md:py-40 border-t border-white/10">
+                            <div className="max-w-4xl space-y-8 md:space-y-10">
+                                <h2 className="font-pixel text-3xl sm:text-4xl md:text-5xl tracking-tighter leading-tight break-words">
                                     PARTICIPATE_IN_FUTARCHY
                                 </h2>
-                                <p className="text-xl font-mono text-white/50 leading-relaxed uppercase">
+                                <p className="text-lg md:text-xl font-mono text-white/50 leading-relaxed uppercase">
                                     FUTARCHY ALIGNS CAPITAL WITH INFORMATION. CONTRIBUTE TO THE LIQUIDITY POOLS TO ESTABLISH ON-CHAIN BELIEFS THAT DRIVE PROTOCOL DECISIONS.
                                 </p>
-                                <div className="flex gap-4">
+                                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                                     <button
-                                        className="terminal-button !py-6 !px-12 text-lg"
+                                        className="terminal-button !py-4 sm:!py-6 !px-10 sm:!px-12 text-base sm:text-lg"
                                         onClick={() => scrollTo('manifesto')}
                                     >
                                         [ ENTER_MARKET ]
                                     </button>
-                                    <button className="terminal-button !py-6 !px-12 text-lg opacity-40 hover:opacity-100">
+                                    <button className="terminal-button !py-4 sm:!py-6 !px-10 sm:!px-12 text-base sm:text-lg opacity-40 hover:opacity-100">
                                         [ PROTOCOL_DOCUMENTATION ]
                                     </button>
                                 </div>
@@ -469,7 +479,7 @@ export default function Dashboard() {
                 </div >
 
                 {/* Website Footer */}
-                < footer className="mt-32 pt-16 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-8 pb-12" >
+                < footer className="mt-24 md:mt-32 pt-12 md:pt-16 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8 pb-12" >
                     <div className="flex items-center gap-10">
                         <div className="flex flex-col">
                             <span className="text-[6px] font-pixel opacity-20 uppercase tracking-widest mb-1">LIQUIDITY_GUARDIAN</span>
