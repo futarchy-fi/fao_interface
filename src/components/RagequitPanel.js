@@ -1,44 +1,87 @@
 'use client';
 
 import { useState } from 'react';
-import { useFAOContract, FAO_SALE_ADDRESS } from '../hooks/useFAOContract';
+import { useAccount, useReadContract, useWalletClient } from 'wagmi';
+import { parseEther, formatEther } from 'viem';
+import { useFAOContract, FAO_SALE_ADDRESS, FAO_TOKEN_ADDRESS } from '../hooks/useFAOContract';
+import { useApproveAndCall } from '../hooks/useApproveAndCall';
 import { useETHPrice } from '../hooks/useETHPrice';
 import { toast } from 'sonner';
+import TransactionConfirmModal from './TransactionConfirmModal';
+import FAOSaleABI from '../abi/FAOSale.json';
 
 export default function RagequitPanel() {
     const [amount, setAmount] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const { saleContract } = useFAOContract();
-    const { price: ethPrice } = useETHPrice();
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // FAO is priced at 0.0001 ETH initially.
-    // Pro-rata redemption depends on treasury balance, but let's estimate based on face value for UI.
-    const estimatedEth = (parseFloat(amount) || 0) * 0.0001;
+    // Hooks
+    const { price: ethPrice } = useETHPrice();
+    const { approveAndCall, isLoading: isHandling } = useApproveAndCall();
+    const { address } = useAccount();
+    const { data: walletClient } = useWalletClient();
+
+    // Fetch current price for estimation
+    const { data: currentPriceWei } = useReadContract({
+        address: FAO_SALE_ADDRESS,
+        abi: FAOSaleABI,
+        functionName: 'currentPriceWeiPerToken',
+        watch: true,
+    });
+
+    // Estimate ETH value based on current price (Approximation)
+    // Note: Ragequit value might differ based on treasury backing/formula
+    const estimatedEthWei = amount && currentPriceWei
+        ? (parseEther(amount) * currentPriceWei) / 1000000000000000000n
+        : 0n;
+
+    const estimatedEth = Number(formatEther(estimatedEthWei));
     const usdValue = estimatedEth * ethPrice;
 
-    const handleRagequit = async () => {
-        if (!amount || isNaN(amount)) {
+    const handleRagequitClick = () => {
+        if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
             toast.error("INVALID_DAO_EXIT_COMMAND");
             return;
         }
-
-        setIsLoading(true);
-        try {
-            const promise = new Promise((resolve) => setTimeout(resolve, 3000));
-            toast.promise(promise, {
-                loading: 'EXECUTING_SETTLEMENT...',
-                success: 'LIQUIDITY_RECLAIM_CONFIRMED',
-                error: 'SETTLEMENT_FAILED',
-            });
-            await promise;
-            setAmount('');
-        } catch (err) {
-            console.error(err);
-            toast.error("TRANSACTION_ERROR");
-        } finally {
-            setIsLoading(false);
+        if (!address) {
+            toast.error("WALLET_NOT_CONNECTED");
+            return;
         }
+        setIsModalOpen(true);
     };
+
+    const executeRagequit = async () => {
+        setIsModalOpen(false);
+
+        if (!walletClient) return;
+
+        const amountWei = parseEther(amount);
+
+        // useApproveAndCall handles the Approval then executes onAction
+        approveAndCall({
+            tokenAddress: FAO_TOKEN_ADDRESS,
+            spenderAddress: FAO_SALE_ADDRESS,
+            amountWei: amountWei,
+            actionName: "RAGEQUIT",
+            onAction: async () => {
+                return await walletClient.writeContract({
+                    address: FAO_SALE_ADDRESS,
+                    abi: FAOSaleABI,
+                    functionName: 'ragequit',
+                    args: [amountWei]
+                });
+            },
+            onSuccess: () => {
+                setAmount('');
+            }
+        });
+    };
+
+    // Modal Data
+    const distribution = [
+        { label: 'BURNING', value: `${amount} FAO` },
+        { label: 'RECEIVING (EST)', value: `${estimatedEth.toFixed(4)} ETH` },
+        { label: 'TREASURY_IMPACT', value: 'DEFLATIONARY' },
+    ];
 
     return (
         <div className="flex flex-col gap-6 sm:gap-8 w-full relative overflow-hidden p-4 sm:p-6 border transition-colors duration-700 bg-black border-white/10">
@@ -54,7 +97,7 @@ export default function RagequitPanel() {
                 REDEEM_SHARE: Pro-rata redemption of treasury assets by calling the ragequit() function. This process burns your FAO holdings.
             </p>
 
-            {(!saleContract || FAO_SALE_ADDRESS === "0x00000000000000000000000000000000") && (
+            {(FAO_SALE_ADDRESS === "0x00000000000000000000000000000000") && (
                 <div className="absolute inset-0 z-40 flex items-center justify-center border flex-col text-center p-6 backdrop-blur-sm bg-black/95 border-white">
                     <span className="font-pixel font-bold text-sm mb-4 tracking-widest px-2 py-1 bg-white text-black">!! ERR_SETUP !!</span>
                     <p className="text-[10px] font-pixel text-white/50">CONFIGURE CONTRACT_MANIFEST in config/contracts.js</p>
@@ -75,7 +118,7 @@ export default function RagequitPanel() {
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
                         placeholder="0.00"
-                        disabled={!saleContract || FAO_SALE_ADDRESS === "0x00000000000000000000000000000000"}
+                        disabled={FAO_SALE_ADDRESS === "0x00000000000000000000000000000000"}
                         className="w-full border p-4 sm:p-6 text-3xl sm:text-4xl font-mono focus:outline-none transition-all duration-300 placeholder:text-white/10 bg-white/5 border-white/20 text-white focus:bg-white focus:text-black"
                     />
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 font-pixel text-[10px] text-white/30 group-focus-within:text-black">FAO</div>
@@ -83,11 +126,22 @@ export default function RagequitPanel() {
             </div>
 
             <button
-                onClick={handleRagequit}
+                onClick={handleRagequitClick}
                 className="w-full terminal-button py-6 sm:py-8 text-base sm:text-lg font-bold border-white/40 text-white/40 hover:bg-white hover:text-black hover:border-white transition-all duration-500"
             >
-                {isLoading ? 'WAITING_FOR_CONFIRMATION...' : 'EXECUTE_RAGEQUIT'}
+                {isHandling ? 'WAITING_FOR_CONFIRMATION...' : 'EXECUTE_RAGEQUIT'}
             </button>
+
+            <TransactionConfirmModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onConfirm={executeRagequit}
+                data={{
+                    amount: amount,
+                    receiveAmount: estimatedEth.toFixed(4) + " ETH",
+                    distribution: distribution
+                }}
+            />
         </div>
     );
 }

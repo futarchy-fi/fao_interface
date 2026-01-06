@@ -1,25 +1,55 @@
 'use client';
 
-import { useState } from 'react';
-import { parseEther } from 'viem';
+import { useState, useMemo } from 'react';
+import { parseEther, formatEther } from 'viem';
+import { useAccount, useReadContract, useWalletClient, usePublicClient } from 'wagmi';
 import { useFAOContract, FAO_SALE_ADDRESS } from '../hooks/useFAOContract';
-import { useApproveAndCall } from '../hooks/useApproveAndCall';
 import { useETHPrice } from '../hooks/useETHPrice';
 import { toast } from 'sonner';
 import TransactionConfirmModal from './TransactionConfirmModal';
+import FAOSaleABI from '../abi/FAOSale.json';
 
 export default function BuyPanel() {
     const [amount, setAmount] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const { price: ethPrice } = useETHPrice();
     const { saleContract } = useFAOContract();
-    const { approveAndCall, isLoading: isHandling } = useApproveAndCall();
+    const { address } = useAccount();
+    const { data: walletClient } = useWalletClient();
+    const publicClient = usePublicClient();
+
+    // Fetch current price from contract
+    const { data: currentPriceWei } = useReadContract({
+        address: FAO_SALE_ADDRESS,
+        abi: FAOSaleABI,
+        functionName: 'currentPriceWeiPerToken',
+        watch: true,
+    });
 
     const usdValue = (parseFloat(amount) || 0) * ethPrice;
+
+    // Calculate tokens based on input ETH and current price
+    // If price is 0 (not loaded), default to 0
+    const estimatedTokens = useMemo(() => {
+        if (!amount || !currentPriceWei || currentPriceWei === 0n) return 0;
+        try {
+            const ethWei = parseEther(amount);
+            // numTokens = ethWei / currentPriceWei
+            // Note: This is an estimation. For a bonding curve, the price moves. 
+            // However for Phase 1 (fixed) this is exact.
+            return Number(ethWei * 1000000000000000000n / currentPriceWei) / 1000000000000000000;
+        } catch (e) {
+            return 0;
+        }
+    }, [amount, currentPriceWei]);
 
     const handleBuyClick = () => {
         if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
             toast.error("INVALID_INPUT_DETECTED");
+            return;
+        }
+        if (!address) {
+            toast.error("WALLET_NOT_CONNECTED");
             return;
         }
         setIsModalOpen(true);
@@ -27,34 +57,48 @@ export default function BuyPanel() {
 
     const executeBuy = async () => {
         setIsModalOpen(false);
-        try {
-            const formattedAmount = parseEther(amount);
+        if (!walletClient || !publicClient) return;
 
-            // In a real setup, we'd use approveAndCall.
-            // For this UI demo, we simulate success.
-            const promise = new Promise((resolve) => setTimeout(resolve, 2000));
-            toast.promise(promise, {
-                loading: 'PROCESSING_TRANSACTION...',
-                success: 'TRANSACTION_CONFIRMED',
-                error: 'TRANSACTION_FAILED',
+        const toastId = toast.loading("INITIATING_SEQUENCE...");
+
+        try {
+            const ethWei = parseEther(amount);
+            // Calculate exact tokens to buy. 
+            // We use BigInt arithmetic for precision: tokens = (ethWei * 1e18) / priceWei
+            // This presumes 18 decimals for Token.
+            const numTokensBigInt = (ethWei * BigInt(1e18)) / (currentPriceWei || BigInt(1e14)); // fallback to avoids div by 0
+
+            toast.loading(`SIGN_TRANSACTION: Buying ${formatEther(numTokensBigInt)} FAO...`, { id: toastId });
+
+            const hash = await walletClient.writeContract({
+                address: FAO_SALE_ADDRESS,
+                abi: FAOSaleABI,
+                functionName: 'buy',
+                args: [numTokensBigInt],
+                value: ethWei
             });
 
-            await promise;
+            toast.loading(`PROCESSING: ${hash.slice(0, 10)}...`, { id: toastId });
+
+            await publicClient.waitForTransactionReceipt({ hash });
+
+            toast.success("ASSET_SECURED", { id: toastId });
             setAmount('');
         } catch (err) {
             console.error(err);
-            toast.error("TRANSACTION_ERROR");
+            toast.error("TRANSACTION_FAILED: " + (err.shortMessage || err.message), { id: toastId });
         }
     };
 
-    // Mock data for the confirmation modal
-    const ethAmount = parseFloat(amount) || 0;
-    const mockRate = 10000; // 1 ETH = 10,000 FAO (based on 0.0001 ETH price)
-    const receiveAmount = (ethAmount * mockRate).toLocaleString();
+    // Data for the confirmation modal
+    const receiveAmount = estimatedTokens.toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+    // Calculate reserves based on the purchase
+    // 66% Treasury, 20% Incentive, 14% Insider (based on original file logic, likely illustrative)
     const distribution = [
-        { label: 'TREASURY_RESERVE (66%)', value: (ethAmount * mockRate * 0.66).toLocaleString() },
-        { label: 'INCENTIVE_RESERVE (20%)', value: (ethAmount * mockRate * 0.20).toLocaleString() },
-        { label: 'INSIDER_VESTING (14%)', value: (ethAmount * mockRate * 0.14).toLocaleString() },
+        { label: 'TREASURY_RESERVE (66%)', value: (estimatedTokens * 0.66).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+        { label: 'INCENTIVE_RESERVE (20%)', value: (estimatedTokens * 0.20).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+        { label: 'INSIDER_VESTING (14%)', value: (estimatedTokens * 0.14).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
     ];
 
     return (
@@ -94,13 +138,17 @@ export default function BuyPanel() {
                     />
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 font-pixel text-[10px] text-white/30 group-focus-within:text-black">ETH</div>
                 </div>
+                {/* Display Current Price */}
+                <div className="text-[9px] font-mono text-white/30 text-right">
+                    PRICE_PER_TOKEN: {currentPriceWei ? formatEther(currentPriceWei) : "..."} ETH
+                </div>
             </div>
 
             <button
                 onClick={handleBuyClick}
                 className="w-full terminal-button py-6 sm:py-8 text-base sm:text-lg font-bold hover:!bg-white hover:!text-black transition-all duration-500"
             >
-                {isHandling ? 'WAITING_FOR_CONFIRMATION...' : 'EXECUTE_BUY'}
+                EXECUTE_BUY
             </button>
 
             <TransactionConfirmModal
@@ -116,3 +164,4 @@ export default function BuyPanel() {
         </div>
     );
 }
+
