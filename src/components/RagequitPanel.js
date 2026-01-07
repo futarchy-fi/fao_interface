@@ -5,7 +5,7 @@ import { useAccount, useReadContract, useWalletClient } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { useFAOContract, FAO_SALE_ADDRESS, FAO_TOKEN_ADDRESS } from '../hooks/useFAOContract';
 import { useApproveAndCall } from '../hooks/useApproveAndCall';
-import { useETHPrice } from '../hooks/useETHPrice';
+import { useNativeCurrency } from '../hooks/useNativeCurrency';
 import { toast } from 'sonner';
 import TransactionConfirmModal from './TransactionConfirmModal';
 import FAOSaleABI from '../abi/FAOSale.json';
@@ -15,7 +15,7 @@ export default function RagequitPanel() {
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     // Hooks
-    const { price: ethPrice } = useETHPrice();
+    const { price: nativePrice, symbol: nativeSymbol } = useNativeCurrency();
     const { approveAndCall, isLoading: isHandling } = useApproveAndCall();
     const { address } = useAccount();
     const { data: walletClient } = useWalletClient();
@@ -28,14 +28,13 @@ export default function RagequitPanel() {
         watch: true,
     });
 
-    // Estimate ETH value based on current price (Approximation)
-    // Note: Ragequit value might differ based on treasury backing/formula
-    const estimatedEthWei = amount && currentPriceWei
+    // Estimate Native Token value based on current price (Approximation)
+    const estimatedWei = amount && currentPriceWei
         ? (parseEther(amount) * currentPriceWei) / 1000000000000000000n
         : 0n;
 
-    const estimatedEth = Number(formatEther(estimatedEthWei));
-    const usdValue = estimatedEth * ethPrice;
+    const estimatedNative = Number(formatEther(estimatedWei));
+    const usdValue = estimatedNative * nativePrice;
 
     const handleRagequitClick = () => {
         if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
@@ -79,7 +78,7 @@ export default function RagequitPanel() {
     // Modal Data
     const distribution = [
         { label: 'BURNING', value: `${amount} FAO` },
-        { label: 'RECEIVING (EST)', value: `${estimatedEth.toFixed(4)} ETH` },
+        { label: 'RECEIVING (EST)', value: `${estimatedNative.toFixed(4)} ${nativeSymbol}` },
         { label: 'TREASURY_IMPACT', value: 'DEFLATIONARY' },
     ];
 
@@ -108,7 +107,7 @@ export default function RagequitPanel() {
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 sm:gap-0">
                     <label className="text-[10px] font-pixel uppercase tracking-[0.2em] text-white/40">BURN (FAO)</label>
                     <div className="text-[10px] font-mono text-white/30">
-                        SETTLEMENT: <span className="text-white">{estimatedEth.toFixed(4)} ETH</span>
+                        SETTLEMENT: <span className="text-white">{estimatedNative.toFixed(4)} {nativeSymbol}</span>
                         <span className="ml-2 text-yellow-500">ƒ%^ ${usdValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>
                     </div>
                 </div>
@@ -138,7 +137,7 @@ export default function RagequitPanel() {
                 onConfirm={executeRagequit}
                 data={{
                     amount: amount,
-                    receiveAmount: estimatedEth.toFixed(4) + " ETH",
+                    receiveAmount: estimatedNative.toFixed(4) + " " + nativeSymbol,
                     distribution: distribution
                 }}
             />

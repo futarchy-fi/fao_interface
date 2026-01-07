@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { parseEther, formatEther } from 'viem';
 import { useAccount, useReadContract, useWalletClient, usePublicClient } from 'wagmi';
 import { useFAOContract, FAO_SALE_ADDRESS } from '../hooks/useFAOContract';
-import { useETHPrice } from '../hooks/useETHPrice';
+import { useNativeCurrency } from '../hooks/useNativeCurrency';
 import { toast } from 'sonner';
 import TransactionConfirmModal from './TransactionConfirmModal';
 import FAOSaleABI from '../abi/FAOSale.json';
@@ -12,7 +12,7 @@ import FAOSaleABI from '../abi/FAOSale.json';
 export default function BuyPanel() {
     const [amount, setAmount] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const { price: ethPrice } = useETHPrice();
+    const { price: nativePrice, symbol: nativeSymbol } = useNativeCurrency();
     const { saleContract } = useFAOContract();
     const { address } = useAccount();
     const { data: walletClient } = useWalletClient();
@@ -26,9 +26,9 @@ export default function BuyPanel() {
         watch: true,
     });
 
-    const usdValue = (parseFloat(amount) || 0) * ethPrice;
+    const usdValue = (parseFloat(amount) || 0) * nativePrice;
 
-    // Calculate tokens based on input ETH and current price
+    // Calculate tokens based on input Native Token and current price
     // If price is 0 (not loaded), default to 0
     const estimatedTokens = useMemo(() => {
         if (!amount || !currentPriceWei || currentPriceWei === 0n) return 0;
@@ -62,20 +62,30 @@ export default function BuyPanel() {
         const toastId = toast.loading("INITIATING_SEQUENCE...");
 
         try {
-            const ethWei = parseEther(amount);
-            // Calculate exact tokens to buy. 
-            // We use BigInt arithmetic for precision: tokens = (ethWei * 1e18) / priceWei
-            // This presumes 18 decimals for Token.
-            const numTokensBigInt = (ethWei * BigInt(1e18)) / (currentPriceWei || BigInt(1e14)); // fallback to avoids div by 0
+            const ethWeiInput = parseEther(amount);
 
-            toast.loading(`SIGN_TRANSACTION: Buying ${formatEther(numTokensBigInt)} FAO...`, { id: toastId });
+            // 1. Calculate max whole tokens that can be bought with this amount
+            // numTokens = floor(ethWeiInput / currentPriceWei)
+            // Note: Contract buys in WHOLE tokens (uint256 numTokens)
+            const numTokensBigInt = ethWeiInput / (currentPriceWei || BigInt(1e14));
+
+            if (numTokensBigInt === 0n) {
+                toast.error("AMOUNT_TOO_LOW: Minimum 1 Token", { id: toastId });
+                return;
+            }
+
+            // 2. Recalculate exact cost required
+            // cost = numTokens * currentPriceWei
+            const exactCostWei = numTokensBigInt * (currentPriceWei || BigInt(1e14));
+
+            toast.loading(`SIGN_TRANSACTION: Buying ${numTokensBigInt.toString()} FAO...`, { id: toastId });
 
             const hash = await walletClient.writeContract({
                 address: FAO_SALE_ADDRESS,
                 abi: FAOSaleABI,
                 functionName: 'buy',
                 args: [numTokensBigInt],
-                value: ethWei
+                value: exactCostWei // Send exact calculated amount, not the raw input
             });
 
             toast.loading(`PROCESSING: ${hash.slice(0, 10)}...`, { id: toastId });
@@ -91,14 +101,24 @@ export default function BuyPanel() {
     };
 
     // Data for the confirmation modal
-    const receiveAmount = estimatedTokens.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    // Recalculate for display consistency
+    const displayTokens = useMemo(() => {
+        if (!amount || !currentPriceWei || currentPriceWei === 0n) return 0;
+        try {
+            const ethWei = parseEther(amount);
+            const tokens = ethWei / currentPriceWei;
+            return Number(tokens);
+        } catch { return 0; }
+    }, [amount, currentPriceWei]);
+
+    const receiveAmount = displayTokens.toLocaleString(undefined, { maximumFractionDigits: 0 }); // Whole tokens only effectively
 
     // Calculate reserves based on the purchase
     // 66% Treasury, 20% Incentive, 14% Insider (based on original file logic, likely illustrative)
     const distribution = [
-        { label: 'TREASURY_RESERVE (66%)', value: (estimatedTokens * 0.66).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
-        { label: 'INCENTIVE_RESERVE (20%)', value: (estimatedTokens * 0.20).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
-        { label: 'INSIDER_VESTING (14%)', value: (estimatedTokens * 0.14).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+        { label: 'TREASURY_RESERVE (66%)', value: (displayTokens * 0.66).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+        { label: 'INCENTIVE_RESERVE (20%)', value: (displayTokens * 0.20).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+        { label: 'INSIDER_VESTING (14%)', value: (displayTokens * 0.14).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
     ];
 
     return (
@@ -124,7 +144,7 @@ export default function BuyPanel() {
 
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 sm:gap-0">
-                    <label className="text-[10px] font-pixel uppercase tracking-[0.2em] text-white/40">PAY (ETH)</label>
+                    <label className="text-[10px] font-pixel uppercase tracking-[0.2em] text-white/40">PAY ({nativeSymbol})</label>
                     <div className="text-[10px] font-mono text-green-500/80">ƒ%^ ${usdValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</div>
                 </div>
                 <div className="relative group">
@@ -136,11 +156,11 @@ export default function BuyPanel() {
                         disabled={!saleContract || FAO_SALE_ADDRESS === "0x00000000000000000000000000000000"}
                         className="w-full border p-4 sm:p-6 text-3xl sm:text-4xl font-mono focus:outline-none transition-all duration-300 placeholder:text-white/10 bg-white/5 border-white/20 text-white focus:bg-white focus:text-black"
                     />
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 font-pixel text-[10px] text-white/30 group-focus-within:text-black">ETH</div>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 font-pixel text-[10px] text-white/30 group-focus-within:text-black">{nativeSymbol}</div>
                 </div>
                 {/* Display Current Price */}
                 <div className="text-[9px] font-mono text-white/30 text-right">
-                    PRICE_PER_TOKEN: {currentPriceWei ? formatEther(currentPriceWei) : "..."} ETH
+                    PRICE_PER_TOKEN: {currentPriceWei ? formatEther(currentPriceWei) : "..."} {nativeSymbol}
                 </div>
             </div>
 

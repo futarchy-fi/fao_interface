@@ -2,6 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
+import { formatEther } from 'viem';
+import { useAccount, useReadContract } from 'wagmi';
+import { useNativeCurrency } from '../../hooks/useNativeCurrency';
+import FAOTokenABI from '../../abi/FAOToken.json';
+import FAOSaleABI from '../../abi/FAOSale.json';
+import { FAO_TOKEN_ADDRESS, FAO_SALE_ADDRESS } from '../../hooks/useFAOContract';
+
 import { ConnectWallet } from '../../components/ConnectWallet';
 import BuyPanel from '../../components/BuyPanel';
 import RagequitPanel from '../../components/RagequitPanel';
@@ -72,6 +79,34 @@ export default function Dashboard() {
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    // -- REAL DATA INTEGRATION --
+    const { address } = useAccount();
+    const { symbol: nativeSymbol } = useNativeCurrency();
+
+    // Fetch FAO Balance
+    const { data: faoBalance } = useReadContract({
+        address: FAO_TOKEN_ADDRESS,
+        abi: FAOTokenABI,
+        functionName: 'balanceOf',
+        args: [address],
+        query: { enabled: !!address, pollInterval: 5000 }
+    });
+
+    // Fetch Current Price
+    const { data: currentPriceWei } = useReadContract({
+        address: FAO_SALE_ADDRESS,
+        abi: FAOSaleABI,
+        functionName: 'currentPriceWeiPerToken',
+        watch: true,
+    });
+
+    // Calculations
+    const holdings = faoBalance ? Number(formatEther(faoBalance)) : 0;
+    const exitValueEth = (holdings * (currentPriceWei ? Number(formatEther(currentPriceWei)) : 0));
+    const formattedHoldings = holdings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const formattedExitValue = exitValueEth > 0 ? exitValueEth.toFixed(4) : "0.0000";
+
 
     return (
         <div className="min-h-screen bg-black text-white selection:bg-white selection:text-black scroll-smooth flex flex-col">
@@ -198,28 +233,28 @@ export default function Dashboard() {
                     </div>
                 </section>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_440px] xl:grid-cols-[minmax(0,1fr)_480px] gap-8 xl:gap-16 items-start">
-                        {/* MAIN SCROLLABLE CONTENT */}
-                        <main className="flex-1 min-w-0 space-y-16 md:space-y-32 xl:space-y-40 pb-24 md:pb-32">
-                            {/* SECTION 02: KNOWLEDGE_BASE */}
-                            <section id="intel" className="space-y-16 md:space-y-24 scroll-mt-20">
-                                <div className="space-y-4">
-                                    <ScrollTypingHeader text="PROTOCOL_GOVERNANCE_INTEL" className="ico-header text-3xl sm:text-4xl lg:text-5xl" />
-                                    <p className="opacity-40 font-pixel text-[8px] tracking-[0.4em] uppercase italic">// SOURCE: GOVERNANCE_OPERATING_MANUAL_V1.2</p>
-                                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_440px] xl:grid-cols-[minmax(0,1fr)_480px] gap-8 xl:gap-16 items-start">
+                    {/* MAIN SCROLLABLE CONTENT */}
+                    <main className="flex-1 min-w-0 space-y-16 md:space-y-32 xl:space-y-40 pb-24 md:pb-32">
+                        {/* SECTION 02: KNOWLEDGE_BASE */}
+                        <section id="intel" className="space-y-16 md:space-y-24 scroll-mt-20">
+                            <div className="space-y-4">
+                                <ScrollTypingHeader text="PROTOCOL_GOVERNANCE_INTEL" className="ico-header text-3xl sm:text-4xl lg:text-5xl" />
+                                <p className="opacity-40 font-pixel text-[8px] tracking-[0.4em] uppercase italic">// SOURCE: GOVERNANCE_OPERATING_MANUAL_V1.2</p>
+                            </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
-                                    {/* Core Concept */}
-                                    <div className="space-y-6 md:space-y-8 p-6 md:p-10 border border-white/20 bg-white/[0.02]">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-full border border-blue-500/40 flex items-center justify-center font-pixel text-blue-500 text-xs">01</div>
-                                            <h3 className="font-pixel text-lg tracking-tighter">VALUES_VS_BELIEFS</h3>
-                                        </div>
-                                        <p className="font-mono text-white/60 leading-relaxed text-sm md:text-base">
-                                            FUTARCHY TARGETS THE CORE INEFFICIENCY OF GOVERNANCE: THE BLURRING OF INTENT (VALUES) AND EXECUTION (BELIEFS).
-                                            IN OUR SYSTEM, <span className="text-white font-bold uppercase">HUMANS DECIDE THE TARGET OUTCOME</span> (E.G., TOKEN PRICE GROWTH),
-                                            WHILE <span className="text-white font-bold uppercase">MARKETS AGGREGATE INFORMATION</span> TO DETERMINE THE BEST PATH TO THAT OUTCOME.
-                                        </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
+                                {/* Core Concept */}
+                                <div className="space-y-6 md:space-y-8 p-6 md:p-10 border border-white/20 bg-white/[0.02]">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-full border border-blue-500/40 flex items-center justify-center font-pixel text-blue-500 text-xs">01</div>
+                                        <h3 className="font-pixel text-lg tracking-tighter">VALUES_VS_BELIEFS</h3>
+                                    </div>
+                                    <p className="font-mono text-white/60 leading-relaxed text-sm md:text-base">
+                                        FUTARCHY TARGETS THE CORE INEFFICIENCY OF GOVERNANCE: THE BLURRING OF INTENT (VALUES) AND EXECUTION (BELIEFS).
+                                        IN OUR SYSTEM, <span className="text-white font-bold uppercase">HUMANS DECIDE THE TARGET OUTCOME</span> (E.G., TOKEN PRICE GROWTH),
+                                        WHILE <span className="text-white font-bold uppercase">MARKETS AGGREGATE INFORMATION</span> TO DETERMINE THE BEST PATH TO THAT OUTCOME.
+                                    </p>
                                     <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
                                         <div className="space-y-2">
                                             <div className="font-pixel text-[8px] opacity-30 uppercase tracking-widest">HUMAN_ROLE</div>
@@ -425,18 +460,18 @@ export default function Dashboard() {
                                     <div className="flex justify-between items-end">
                                         <div className="flex flex-col">
                                             <span className="text-[8px] font-pixel opacity-20 uppercase mb-1">HOLDINGS</span>
-                                            <span className="text-4xl font-mono font-black">25,400.00</span>
+                                            <span className="text-4xl font-mono font-black">{formattedHoldings}</span>
                                         </div>
                                         <span className="font-pixel text-[10px] opacity-40 mb-1 tracking-widest">FAO</span>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="p-4 border border-white/10 bg-black">
                                             <span className="text-[7px] font-pixel opacity-20 block mb-1 uppercase">AVG_COST</span>
-                                            <span className="font-mono text-sm leading-none">0.0034 ETH</span>
+                                            <span className="font-mono text-sm leading-none">-- {nativeSymbol}</span>
                                         </div>
                                         <div className="p-4 border border-white bg-white text-black">
-                                            <span className="text-[7px] font-pixel opacity-60 block mb-1 uppercase">EXIT_VALUE</span>
-                                            <span className="font-mono text-sm leading-none underline decoration-2">1.04 ETH</span>
+                                            <span className="text-[7px] font-pixel opacity-60 block mb-1 uppercase">EXIT_VALUE (EST)</span>
+                                            <span className="font-mono text-sm leading-none underline decoration-2">{formattedExitValue} {nativeSymbol}</span>
                                         </div>
                                     </div>
                                 </div>
