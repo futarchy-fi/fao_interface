@@ -84,3 +84,22 @@ The `BuyPanel.js` component was updated to handle this calculation on the client
 1.  **Calculate Whole Tokens**: It calculates `floor(userEthInput / currentPrice)`.
 2.  **Derive Exact Cost**: It calculates `numWholeTokens * currentPrice`.
 3.  **Send Exact Amount**: The transaction now sends explicitly that exact cost (e.g., `0.0001 ETH`), leaving the "dust" (0.00005 ETH) in the user's wallet.
+
+## 6. Troubleshooting: Ragequit Transactions
+
+### Issue: "Insufficient FAO balance" Revert
+Users attempting to ragequit encountered a revert with "Insufficient FAO balance", even though they held enough tokens.
+
+**Why it happened:**
+This was a **unit mismatch** between the frontend and the contract.
+*   **The Contract**: Expects `numTokens` (Count) as the argument for `ragequit(uint256)`. e.g., to burn 1 token, send `1`.
+*   **The Frontend**: Was sending the Wei value of the tokens. e.g., to burn 1 token, it sent `1000000000000000000` (1e18).
+*   **Result**: The contract tried to burn 1 Quintillion tokens. Since the user only had 1 token, the balance check failed.
+
+**How it was fixed:**
+The `RagequitPanel.js` component was updated to treat approval and burning separately:
+1.  **Approval (ERC20)**: Still requires Wei (e.g., `1e18`).
+2.  **Ragequit (Custom)**: Now calculates `numTokens = rawWei / 1e18` and sends only that count (e.g., `1`) to the contract function.
+
+### Issue: "approveAndCall is not a function"
+A simple naming mismatch in `src/hooks/useApproveAndCall.js`. The hook returned `{ execute }` but the component attempted to destructure `{ approveAndCall }`. This was resolved by renaming the export to match the component's expectation.

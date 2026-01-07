@@ -178,7 +178,9 @@ export default function BuyPanel() {
                 data={{
                     amount: amount,
                     receiveAmount: receiveAmount,
-                    distribution: distribution
+                    distribution: distribution,
+                    inputSymbol: nativeSymbol,
+                    outputSymbol: "FAO"
                 }}
             />
         </div>

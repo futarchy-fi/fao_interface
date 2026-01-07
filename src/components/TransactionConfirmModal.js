@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function TransactionConfirmModal({ isOpen, onClose, onConfirm, data }) {
     if (!isOpen) return null;
 
-    const { amount, receiveAmount, distribution } = data;
+    const { amount, receiveAmount, distribution, inputSymbol = "ETH", outputSymbol = "FAO" } = data;
 
     return (
         <AnimatePresence>
@@ -28,12 +28,12 @@ export default function TransactionConfirmModal({ isOpen, onClose, onConfirm, da
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-6 p-4 bg-white/5 border border-white/10">
                             <div className="flex flex-col">
                                 <span className="text-[8px] font-pixel opacity-30 mb-1">INPUT (EXPENDITURE)</span>
-                                <span className="text-xl sm:text-2xl font-mono font-bold text-red-400">-{amount} ETH</span>
+                                <span className="text-xl sm:text-2xl font-mono font-bold text-red-400">-{amount} {inputSymbol}</span>
                             </div>
                             <div className="hidden sm:block w-8 h-px bg-white/20" />
                             <div className="flex flex-col text-left sm:text-right">
                                 <span className="text-[8px] font-pixel opacity-30 mb-1">OUTPUT (ACQUISITION)</span>
-                                <span className="text-xl sm:text-2xl font-mono font-bold text-green-400">+{receiveAmount} FAO</span>
+                                <span className="text-xl sm:text-2xl font-mono font-bold text-green-400">+{receiveAmount} {outputSymbol}</span>
                             </div>
                         </div>
 
@@ -43,7 +43,7 @@ export default function TransactionConfirmModal({ isOpen, onClose, onConfirm, da
                                 {distribution.map((item, i) => (
                                     <div key={i} className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-l-2 border-white/20 pl-4 py-1 gap-1 sm:gap-0">
                                         <span className="font-mono text-[10px] text-white/60">{item.label}</span>
-                                        <span className="font-mono text-[10px] font-bold">{item.value} FAO</span>
+                                        <span className="font-mono text-[10px] font-bold">{item.value}</span>
                                     </div>
                                 ))}
                             </div>

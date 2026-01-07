@@ -99,5 +99,5 @@ export function useApproveAndCall() {
         }
     }, [address, walletClient, publicClient]);
 
-    return { execute, isLoading };
+    return { approveAndCall: execute, isLoading };
 }

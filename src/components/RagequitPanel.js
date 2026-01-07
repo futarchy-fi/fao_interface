@@ -53,20 +53,35 @@ export default function RagequitPanel() {
 
         if (!walletClient) return;
 
-        const amountWei = parseEther(amount);
+        // 1. Parse input to Wei (e.g. "1.5" -> 1.5e18)
+        const rawAmountWei = parseEther(amount);
+
+        // 2. Calculate Whole Tokens (floor) because contract expects uint256 numTokens
+        // Example: 1.5e18 / 1e18 = 1n
+        const numTokensBigInt = rawAmountWei / BigInt(1e18);
+
+        if (numTokensBigInt === 0n) {
+            toast.error("AMOUNT_TOO_LOW: Minimum 1 Token");
+            return;
+        }
+
+        // 3. Recalculate exact Wei to approve/burn based on whole tokens
+        // Example: 1n * 1e18 = 1e18 Wei
+        const exactWeiToBurn = numTokensBigInt * BigInt(1e18);
 
         // useApproveAndCall handles the Approval then executes onAction
+        // We approve the EXACT Wei amount needed for the whole tokens
         approveAndCall({
             tokenAddress: FAO_TOKEN_ADDRESS,
             spenderAddress: FAO_SALE_ADDRESS,
-            amountWei: amountWei,
+            amountWei: exactWeiToBurn,
             actionName: "RAGEQUIT",
             onAction: async () => {
                 return await walletClient.writeContract({
                     address: FAO_SALE_ADDRESS,
                     abi: FAOSaleABI,
                     functionName: 'ragequit',
-                    args: [amountWei]
+                    args: [numTokensBigInt] // Contract expects COUNT (e.g. 1) not WEI (e.g. 1e18)
                 });
             },
             onSuccess: () => {
@@ -137,8 +152,10 @@ export default function RagequitPanel() {
                 onConfirm={executeRagequit}
                 data={{
                     amount: amount,
-                    receiveAmount: estimatedNative.toFixed(4) + " " + nativeSymbol,
-                    distribution: distribution
+                    receiveAmount: estimatedNative.toFixed(4),
+                    distribution: distribution,
+                    inputSymbol: "FAO",
+                    outputSymbol: nativeSymbol
                 }}
             />
         </div>
