@@ -17,7 +17,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${mono.variable} ${pixel.variable} font-mono antialiased`}>
         <ThemeProvider>
           <Providers>
