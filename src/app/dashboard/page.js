@@ -74,7 +74,7 @@ export default function Dashboard() {
     }, []);
 
     return (
-        <div className="min-h-screen bg-black text-white selection:bg-white selection:text-black scroll-smooth flex flex-col">
+        <div className="min-h-[100dvh] bg-black text-white selection:bg-white selection:text-black scroll-smooth flex flex-col">
             {/* REAL-TIME TOP TICKER */}
             <LiveTicker />
 

@@ -58,19 +58,11 @@ body {
 
 html,
 body {
-  min-height: 100%;
+  min-height: 100dvh;
+  height: auto;
 }
 
 /* Reserve space for the HUD across all routes */
-:root {
-  --hud-height: 88px;
-}
-
-body {
-  padding-bottom: calc(var(--hud-height) + env(safe-area-inset-bottom, 0px));
-}
-
-/* Reserve space for the HUD on all routes */
 :root {
   --hud-height: 88px;
 }

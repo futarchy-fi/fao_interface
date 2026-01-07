@@ -9,37 +9,9 @@ export default function StatusHUD() {
     const faoPriceEth = 0.0034; // Static protocol price for Phase 1
     const faoPriceUsd = price ? (faoPriceEth * price).toFixed(4) : '...';
     const [mounted, setMounted] = useState(false);
-    const [viewport, setViewport] = useState({ left: 0, bottom: 0, width: '100vw' });
 
     useEffect(() => {
         setMounted(true);
-    }, []);
-
-    // Anchor to the visual viewport on mobile (Edge/Chrome/Safari) so browser UI bars don't push the HUD off-screen.
-    useEffect(() => {
-        const vv = typeof window !== 'undefined' ? window.visualViewport : null;
-        const update = () => {
-            if (vv) {
-                const bottomOffset = Math.max(0, window.innerHeight - vv.height - (vv.offsetTop || 0));
-                setViewport({
-                    left: vv.offsetLeft || 0,
-                    bottom: bottomOffset,
-                    width: `${vv.width}px`,
-                });
-            } else if (typeof window !== 'undefined') {
-                setViewport({ left: 0, bottom: 0, width: '100vw' });
-            }
-        };
-        update();
-        if (vv) {
-            vv.addEventListener('resize', update);
-            vv.addEventListener('scroll', update);
-            return () => {
-                vv.removeEventListener('resize', update);
-                vv.removeEventListener('scroll', update);
-            };
-        }
-        return undefined;
     }, []);
 
     const stats = [
@@ -50,16 +22,16 @@ export default function StatusHUD() {
 
     const hud = (
         <div
-            className="fixed z-[2000] pointer-events-none"
+            className="fixed inset-x-0 bottom-[env(safe-area-inset-bottom,0px)] z-[2000] pointer-events-none w-full"
             style={{
-                left: viewport.left,
-                right: viewport.left,
-                bottom: `calc(${viewport.bottom}px + env(safe-area-inset-bottom, 0px))`,
-                width: viewport.width,
                 transform: 'translate3d(0,0,0)',
+                minHeight: 'var(--hud-height)',
             }}
         >
-            <div className="w-full bg-black/90 backdrop-blur-xl border border-white/10 p-1 flex items-center justify-between shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-x-auto scrollbar-hide rounded-sm pointer-events-auto">
+            <div
+                className="w-full max-w-5xl mx-auto bg-black/90 backdrop-blur-xl border border-white/10 p-1 flex items-center justify-between shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-x-auto scrollbar-hide rounded-sm pointer-events-auto"
+                style={{ minHeight: 'var(--hud-height)' }}
+            >
                 <div className="flex min-w-full sm:min-w-0 sm:flex-1">
                     {stats.map((stat) => (
                         <div
