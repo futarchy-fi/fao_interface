@@ -14,6 +14,8 @@ export default function StatusHUD() {
         setMounted(true);
     }, []);
 
+    // Keep HUD pinned to the bottom of the layout viewport to avoid scroll "drag".
+
     const stats = [
         { label: 'PROTOCOL_TREASURY', value: '1,420.69 ETH', subValue: `$${price ? (1420.69 * price).toLocaleString() : '...'} USD` },
         { label: 'CIRCULATING_SUPPLY', value: '254,000 FAO', subValue: 'PHASE_1_RESERVE' },
@@ -22,8 +24,9 @@ export default function StatusHUD() {
 
     const hud = (
         <div
-            className="fixed inset-x-0 bottom-[env(safe-area-inset-bottom,0px)] z-[2000] pointer-events-none w-full"
+            className="fixed inset-x-0 z-[2000] pointer-events-none w-full"
             style={{
+                bottom: 0,
                 transform: 'translate3d(0,0,0)',
                 minHeight: 'var(--hud-height)',
             }}
