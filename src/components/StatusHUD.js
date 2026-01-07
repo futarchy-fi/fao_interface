@@ -1,22 +1,65 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useETHPrice } from '../hooks/useETHPrice';
 
 export default function StatusHUD() {
-    const { price, loading } = useETHPrice();
+    const { price } = useETHPrice();
     const faoPriceEth = 0.0034; // Static protocol price for Phase 1
     const faoPriceUsd = price ? (faoPriceEth * price).toFixed(4) : '...';
+    const [mounted, setMounted] = useState(false);
+    const [viewport, setViewport] = useState({ left: 0, bottom: 0, width: '100vw' });
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    // Anchor to the visual viewport on mobile (Edge/Chrome/Safari) so browser UI bars don't push the HUD off-screen.
+    useEffect(() => {
+        const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+        const update = () => {
+            if (vv) {
+                const bottomOffset = Math.max(0, window.innerHeight - vv.height - (vv.offsetTop || 0));
+                setViewport({
+                    left: vv.offsetLeft || 0,
+                    bottom: bottomOffset,
+                    width: `${vv.width}px`,
+                });
+            } else if (typeof window !== 'undefined') {
+                setViewport({ left: 0, bottom: 0, width: '100vw' });
+            }
+        };
+        update();
+        if (vv) {
+            vv.addEventListener('resize', update);
+            vv.addEventListener('scroll', update);
+            return () => {
+                vv.removeEventListener('resize', update);
+                vv.removeEventListener('scroll', update);
+            };
+        }
+        return undefined;
+    }, []);
 
     const stats = [
         { label: 'PROTOCOL_TREASURY', value: '1,420.69 ETH', subValue: `$${price ? (1420.69 * price).toLocaleString() : '...'} USD` },
         { label: 'CIRCULATING_SUPPLY', value: '254,000 FAO', subValue: 'PHASE_1_RESERVE' },
-        { label: 'CURRENT_FAO_PRICE', value: `${faoPriceEth} ETH`, subValue: `≈ $${faoPriceUsd} USD` },
+        { label: 'CURRENT_FAO_PRICE', value: `${faoPriceEth} ETH`, subValue: `ƒ%^ $${faoPriceUsd} USD` },
     ];
 
-    return (
-        <div className="fixed inset-x-0 bottom-0 z-[1200] px-3 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] md:pb-6 pointer-events-none">
-            <div className="w-full max-w-5xl mx-auto bg-black/90 backdrop-blur-xl border border-white/10 p-1 flex items-center justify-between shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-x-auto scrollbar-hide rounded-sm pointer-events-auto">
+    const hud = (
+        <div
+            className="fixed z-[2000] pointer-events-none"
+            style={{
+                left: viewport.left,
+                right: viewport.left,
+                bottom: `calc(${viewport.bottom}px + env(safe-area-inset-bottom, 0px))`,
+                width: viewport.width,
+                transform: 'translate3d(0,0,0)',
+            }}
+        >
+            <div className="w-full bg-black/90 backdrop-blur-xl border border-white/10 p-1 flex items-center justify-between shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-x-auto scrollbar-hide rounded-sm pointer-events-auto">
                 <div className="flex min-w-full sm:min-w-0 sm:flex-1">
                     {stats.map((stat) => (
                         <div
@@ -32,7 +75,6 @@ export default function StatusHUD() {
                     ))}
                 </div>
 
-                {/* Live Pulse Indicator */}
                 <div className="px-4 sm:px-6 flex items-center gap-3 flex-shrink-0">
                     <div className="relative">
                         <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -43,4 +85,6 @@ export default function StatusHUD() {
             </div>
         </div>
     );
+
+    return mounted ? createPortal(hud, document.body) : hud;
 }

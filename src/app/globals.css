@@ -56,6 +56,29 @@ body {
   transition: background 0.3s, color 0.3s;
 }
 
+html,
+body {
+  min-height: 100%;
+}
+
+/* Reserve space for the HUD across all routes */
+:root {
+  --hud-height: 88px;
+}
+
+body {
+  padding-bottom: calc(var(--hud-height) + env(safe-area-inset-bottom, 0px));
+}
+
+/* Reserve space for the HUD on all routes */
+:root {
+  --hud-height: 88px;
+}
+
+body {
+  padding-bottom: calc(var(--hud-height) + env(safe-area-inset-bottom, 0px));
+}
+
 @utility terminal-text {
   color: var(--fao-fg);
   text-shadow: 0 0 4px var(--fao-glow);
