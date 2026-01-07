@@ -17,14 +17,18 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${mono.variable} ${pixel.variable} font-mono antialiased`}>
         <ThemeProvider>
           <Providers>
-            {children}
-            <FloatingAIChat />
-            <StatusHUD />
-            <Toaster position="bottom-right" />
+            <div className="app-shell">
+              <div className="app-scroll">
+                {children}
+              </div>
+              <FloatingAIChat />
+              <StatusHUD />
+              <Toaster position="bottom-right" />
+            </div>
           </Providers>
         </ThemeProvider>
       </body>
