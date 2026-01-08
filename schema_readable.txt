@@ -1,5 +1,5 @@
 # FAO Subgraph Schema
-# Endpoint: https://api.studio.thegraph.com/query/1718248/fao-subgraph/version/latest
+# Endpoint: https://api.studio.thegraph.com/query/1718248/fao-interface/0.0.1
 # Generated: 2026-01-08T04:05:54.218Z
 
 type ConfigChange {

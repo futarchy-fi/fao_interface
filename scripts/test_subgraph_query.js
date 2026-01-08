@@ -3,7 +3,7 @@
  * Run: node scripts/test_subgraph_query.js
  */
 
-const SUBGRAPH_URL = "https://api.studio.thegraph.com/query/1718248/fao-subgraph/version/latest";
+const SUBGRAPH_URL = "https://api.studio.thegraph.com/query/1718248/fao-interface/0.0.1";
 
 const DASHBOARD_QUERY = `
   query GetDashboardData {

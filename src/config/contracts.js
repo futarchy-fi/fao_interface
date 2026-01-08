@@ -6,4 +6,4 @@ export const CONTRACTS = {
 
 export const CHAIN_ID = 100; // Gnosis Chain ID
 
-export const SUBGRAPH_URL = "https://api.studio.thegraph.com/query/1718248/fao-subgraph/version/latest";
+export const SUBGRAPH_URL = "https://api.studio.thegraph.com/query/1718248/fao-interface/0.0.1";

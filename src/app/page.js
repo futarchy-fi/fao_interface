@@ -1,256 +1,943 @@
 'use client';
 
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { TerminalWrapper } from '../components/ui/TerminalWrapper';
-import { TerminalLog } from '../components/ui/TerminalLog';
-import { AnimatedLogo } from '../components/ui/AnimatedLogo';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence, useInView } from 'framer-motion';
+import { formatEther } from 'viem';
+import { useAccount, useReadContract } from 'wagmi';
+import { useNativeCurrency } from '../hooks/useNativeCurrency';
+import FAOTokenABI from '../abi/FAOToken.json';
+import FAOSaleABI from '../abi/FAOSale.json';
+import { FAO_TOKEN_ADDRESS, FAO_SALE_ADDRESS } from '../hooks/useFAOContract';
+
 import { ConnectWallet } from '../components/ConnectWallet';
 import BuyPanel from '../components/BuyPanel';
 import RagequitPanel from '../components/RagequitPanel';
-import BondingCurveChart from '../components/BondingCurveChart';
-import TokenDistribution from '../components/TokenDistribution';
-import { HeroLogo } from '../components/ui/HeroLogo'; // Keep existing correct import
+import { TypewriterText } from '../components/ui/TypewriterText';
+import PhaseCountdown from '../components/PhaseCountdown';
+import ActivityCarousel from '../components/ActivityCarousel';
+import FutarchyVisualizer from '../components/FutarchyVisualizer';
+import { ConstructionLogo } from '../components/ui/ConstructionLogo';
+import LiveTicker from '../components/LiveTicker';
+import ProtocolStats from '../components/ProtocolStats';
+import ContractCodeViewer from '../components/ContractCodeViewer';
+import { useSubgraphData } from '../hooks/useSubgraphData';
+import { toast } from 'sonner';
 
-export default function Home() {
-  const [activeView, setActiveView] = useState('boot');
-  const [showTrade, setShowTrade] = useState(false);
-  const [tradeMode, setTradeMode] = useState('buy');
+const ScrollTypingHeader = ({ text, className = "" }) => {
+    const ref = useRef(null);
+    const isInView = useInView(ref, { once: true, amount: 0.5 });
 
-  const terminalCommands = [
-    {
-      id: 'boot',
-      label: 'SYSTEM_BOOT',
-      output: (
-        <div className="space-y-6">
-          <h1 className="ico-header">FAO.OS_STATION_V4</h1>
-          <p className="max-w-xl text-lg text-white/80 leading-tight border-l-2 border-white pl-6">
-            WELCOME TO THE DECENTRALIZED COGNITION NODE. THE PROTOCOL IS INITIALIZING IMMUTABLE LIQUIDITY PARAMETERS.
-          </p>
-          <div className="text-[10px] opacity-40 uppercase tracking-widest font-pixel">STATUS: // OPERATIONAL // SECURE // MONOCHROME</div>
+    return (
+        <div ref={ref} className={className}>
+            {isInView ? <TypewriterText text={text} speed={0.03} /> : <span className="opacity-0">{text}</span>}
         </div>
-      ),
-      nextOptions: ['manifesto', 'market_data', 'treasury_status', 'activity_log', 'access_vault']
-    },
-    {
-      id: 'manifesto',
-      label: 'MISSION_MANIFESTO',
-      output: (
-        <div className="space-y-8 max-w-2xl py-8">
-          <h2 className="ico-header">THE_AGENT_GOVERNANCE</h2>
-          <p className="text-xl font-mono leading-relaxed text-white">
-            FAO IS AN AUTONOMOUS OPTIMIZER. WE LEVERAGE MACHINE INTELLIGENCE TO GOVERN LIQUIDITY MARKETS WITHOUT HUMAN BIAS.
-          </p>
-          <div className="space-y-6 text-white/60 font-mono text-sm border-t border-white/10 pt-6">
-            <div className="flex gap-4">
-              <span className="text-white bg-white/10 px-2 py-1 h-fit">PHASE_I</span>
-              <div>
-                <h3 className="text-white font-bold mb-1">14-DAY_FIXED_EQUILIBRIUM</h3>
-                <p>Initial 14-day window. FAO is priced at a constant floor to ensure fair-start liquidity depth before curve activation.</p>
-              </div>
-            </div>
-            <div className="flex gap-4">
-              <span className="text-white bg-white/10 px-2 py-1 h-fit">PHASE_II</span>
-              <div>
-                <h3 className="text-white font-bold mb-1">LINEAR_BONDING_CURVE</h3>
-                <p>Mathematical expansion. Price increases proportionally with supply, creating a hard value floor for all participants.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      ),
-      nextOptions: ['market_data', 'treasury_status', 'activity_log', 'access_vault']
-    },
-    {
-      id: 'treasury_status',
-      label: 'TREASURY_PROTOCOL',
-      output: (
-        <div className="space-y-8 py-8">
-          <h2 className="ico-header">TREASURY_RESERVE_AUDIT</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="border border-white/20 p-6 bg-white/5 space-y-4">
-              <h3 className="font-pixel text-[10px] text-white/40 uppercase tracking-widest">_CURRENT_ASSETS</h3>
-              <div className="text-4xl font-mono font-black">1.28M <span className="text-sm opacity-40">ETH</span></div>
-              <p className="text-xs text-white/60">COLLECTED_FROM_BONDING_CURVE // 100%_LIQUIDITY_BACKED</p>
-            </div>
-            <div className="border border-white/20 p-6 bg-white/5 space-y-4">
-              <h3 className="font-pixel text-[10px] text-white/40 uppercase tracking-widest">_RAGEQUIT_FORMULA</h3>
-              <div className="text-xl font-mono">LIQUIDATION = (BALANCE / SUPPLY) * TREASURY</div>
-              <p className="text-xs text-white/60 italic">Your exit value is programmatically derived from the total treasury divided by circulating supply. Fairness is hardcoded.</p>
-            </div>
-          </div>
-        </div>
-      ),
-      nextOptions: ['manifesto', 'market_data', 'activity_log', 'access_vault']
-    },
-    {
-      id: 'activity_log',
-      label: 'ACTIVITY_LOG_&_PORTFOLIO',
-      output: (
-        <div className="space-y-8 py-8">
-          <h2 className="ico-header">SYSTEM_ACTIVITY_FEED</h2>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center text-[10px] font-mono border-b border-white/10 pb-2 text-white/40 italic">
-              <span>TIMESTAMP</span>
-              <span>IDENTIFIER</span>
-              <span>COMMAND</span>
-              <span>VALUE</span>
-            </div>
-            <div className="flex justify-between items-center text-xs font-mono py-2 hover:bg-white/5 px-2 transition-colors">
-              <span className="opacity-40">18:04:12</span>
-              <span>0x8F..2E</span>
-              <span className="text-white/80">BUY_FAO</span>
-              <span className="font-black">12,500 FAO</span>
-            </div>
-            <div className="flex justify-between items-center text-xs font-mono py-2 hover:bg-white/5 px-2 transition-colors">
-              <span className="opacity-40">17:52:01</span>
-              <span>0x4A..9B</span>
-              <span className="text-red-500">RAGEQUIT</span>
-              <span className="font-black text-red-500">-5,200 FAO</span>
-            </div>
-          </div>
+    );
+};
 
-          <h2 className="ico-header mt-12 pt-12 border-t border-white/10">YOUR_PORTFOLIO</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-4 border border-white/20">
-              <div className="text-[8px] font-pixel opacity-30 mb-2">POSSESSION</div>
-              <div className="text-2xl font-mono font-bold">25,400 <span className="text-[10px] opacity-40">FAO</span></div>
-            </div>
-            <div className="p-4 border border-white/20">
-              <div className="text-[8px] font-pixel opacity-30 mb-2">COST_BASIS</div>
-              <div className="text-2xl font-mono font-bold">0.82 <span className="text-[10px] opacity-40">ETH</span></div>
-            </div>
-            <div className="p-4 border border-white/20 bg-white text-black">
-              <div className="text-[8px] font-pixel opacity-60 mb-2">RAGEQUIT_VALUE</div>
-              <div className="text-2xl font-mono font-bold">1.04 <span className="text-[10px] opacity-60">ETH</span></div>
-            </div>
-          </div>
-        </div>
-      ),
-      nextOptions: ['manifesto', 'market_data', 'treasury_status', 'access_vault']
-    },
-    {
-      id: 'market_data',
-      label: 'MARKET_ANALYTICS',
-      output: (
-        <div className="space-y-12 py-8">
-          <h2 className="ico-header">CORE_METRICS_STREAM</h2>
-          <div className="grid grid-cols-1 gap-12">
-            <BondingCurveChart />
-            <TokenDistribution />
-          </div>
-        </div>
-      ),
-      nextOptions: ['manifesto', 'access_vault']
-    },
-    {
-      id: 'access_vault',
-      label: 'ACCESS_VAULT_CONTROLS',
-      output: "INITIALIZING_CONTROL_UNIT... LOADING_TRADING_INTERFACE... SYSTEM_READY.",
-      nextOptions: ['manifesto', 'market_data']
-    }
-  ];
+export default function Dashboard() {
+    const [tradeMode, setTradeMode] = useState('buy');
+    const [showCurveInfo, setShowCurveInfo] = useState(false);
+    const [activeSection, setActiveSection] = useState('manifesto');
+    const [isMobile, setIsMobile] = useState(false);
+    const [navIndex, setNavIndex] = useState(0);
+    const [navOffset, setNavOffset] = useState(0);
+    const [navAnimating, setNavAnimating] = useState(false);
+    const [navDragX, setNavDragX] = useState(0);
+    const navViewportRef = useRef(null);
+    const navDragXRef = useRef(0);
+    const navWidthRef = useRef(0);
+    const navPendingRef = useRef(0);
+    const [portfolioUpdatePending, setPortfolioUpdatePending] = useState(false);
+    const previousBalanceRef = useRef(null);
+    const optimisticStartTimeRef = useRef(null);
 
-  const handleCommand = (cmdId) => {
-    setActiveView(cmdId);
-    if (cmdId === 'access_vault') {
-      setShowTrade(true);
-    } else {
-      setShowTrade(false);
-    }
-  };
+    const sections = [
+        { id: 'manifesto', label: '01 // GOVERNANCE_ARCHITECTURE' },
+        { id: 'intel', label: '02 // PROTOCOL_INTEL' },
+        { id: 'audit', label: '03 // TRANSACTION_LOG' },
+        { id: 'governance', label: '04 // PARTICIPATION' }
+    ];
 
-  return (
-    <TerminalWrapper>
-      <HeroLogo />
-      <div className="flex flex-col h-full gap-8 md:gap-12 relative z-10">
-        {/* Station Header */}
-        <header className="flex w-full flex-col md:flex-row items-start md:items-center justify-between border-b border-white/10 pb-6 md:pb-10 gap-6 md:gap-8">
-          <div className="flex items-center gap-4 md:gap-6">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 grayscale brightness-200">
-              <AnimatedLogo />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-pixel text-[8px] opacity-30 tracking-[0.4em] uppercase mb-1">STATION_IDENTIFIER</span>
-              <span className="font-pixel text-xl tracking-tighter">FAO_PROTOTYPE_04</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 md:gap-6 w-full md:w-auto">
-            <ConnectWallet />
-          </div>
-        </header>
+    // Fetch live transaction and sale data from subgraph (30s auto-refresh)
+    const {
+        transactions: liveTransactions,
+        sale,
+        lastSyncedAtUTC,
+        refetch: refetchSubgraph,
+        isLoading: isSyncing
+    } = useSubgraphData({ pollInterval: 30000 });
 
-        {/* Main Interface Mixture */}
-        <div className="flex-1 flex flex-col lg:flex-row gap-10 lg:gap-16 min-h-0">
-          {/* Left: Interactive AI System Log */}
-          <div className="flex-1 flex flex-col min-h-[420px] md:min-h-[500px]">
-            <TerminalLog
-              commands={terminalCommands}
-              onCommandSelect={handleCommand}
-            />
-          </div>
+    useEffect(() => {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    setActiveSection(entry.target.id);
+                }
+            });
+        }, { threshold: 0.5 });
 
-          {/* Right: The High-Contrast Control Unit */}
-          <AnimatePresence>
-            {showTrade && (
-              <motion.div
-                initial={{ opacity: 0, x: 50, filter: "blur(10px)" }}
-                animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-                exit={{ opacity: 0, x: 50, filter: "blur(10px)" }}
-                className="w-full lg:w-[420px] xl:w-[500px] flex flex-col gap-6 md:gap-8"
-              >
-                <div className="flex border border-white/10 bg-white/5 p-1 mb-2">
-                  <button
-                    onClick={() => setTradeMode('buy')}
-                    className={`flex-1 py-2.5 sm:py-3 font-pixel text-[9px] sm:text-[10px] transition-all ${tradeMode === 'buy' ? 'bg-white text-black' : 'hover:bg-white/10 opacity-40'}`}
-                  >
-                    [ SECURE_FAO ]
-                  </button>
-                  <button
-                    onClick={() => setTradeMode('exit')}
-                    className={`flex-1 py-2.5 sm:py-3 font-pixel text-[9px] sm:text-[10px] transition-all ${tradeMode === 'exit' ? 'bg-white text-black' : 'hover:bg-white/10 opacity-40'}`}
-                  >
-                    [ TERMINATE_NODE ]
-                  </button>
-                </div>
+        sections.forEach(s => {
+            const el = document.getElementById(s.id);
+            if (el) observer.observe(el);
+        });
 
-                <div className="bg-black border border-white shadow-[0_0_40px_rgba(255,255,255,0.05)] p-2 sm:p-3">
-                  {tradeMode === 'buy' ? <BuyPanel /> : <RagequitPanel />}
-                </div>
+        return () => observer.disconnect();
+    }, []);
 
-                <div className="p-4 md:p-6 border border-white/5 bg-white/2">
-                  <div className="font-pixel text-[8px] opacity-30 uppercase tracking-widest mb-4">_SYSTEM_WARNING</div>
-                  <p className="font-mono text-[10px] leading-relaxed text-white/50">
-                    TRANSACTIONS ARE IMMUTABLE. BY EXECUTING COMMANDS, YOU RECOGNIZE THE AUTONOMOUS NATURE OF THE FAO GOVERNANCE MODEL. NO CENTRAL AUTHORITY CAN REVERSE ON-CHAIN LOGIC.
-                  </p>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+    const scrollTo = (id) => {
+        const el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+    };
 
-        {/* Status Bar */}
-        <footer className="min-h-[84px] border-t border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-2 px-2 sm:px-4 py-4 sm:py-0">
-          <div className="flex flex-wrap gap-6 sm:gap-10 w-full sm:w-auto">
-            <div className="flex flex-col">
-              <span className="text-[6px] font-pixel opacity-20 uppercase tracking-widest mb-1">D-INTELLIGENCE_NODE</span>
-              <span className="text-[10px] font-mono text-white/60">NODE_0x1F...42E: CONNECTED</span>
-            </div>
-            <div className="hidden md:flex flex-col">
-              <span className="text-[6px] font-pixel opacity-20 uppercase tracking-widest mb-1">LATENCY_MS</span>
-              <span className="text-[10px] font-mono text-white/60">0.038ms</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 sm:gap-6 w-full sm:w-auto justify-between sm:justify-end">
-            <div className="text-[9px] sm:text-[10px] font-mono opacity-20 hidden sm:block">STATION_OS_V4.2.0_KERN_X64</div>
-            <div className="flex gap-2">
-              <div className="w-1 h-3 bg-white" />
-              <div className="w-1 h-3 bg-white/40" />
-              <div className="w-1 h-3 bg-white/10" />
-            </div>
-          </div>
-        </footer>
-      </div>
-    </TerminalWrapper>
-  );
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth <= 768);
+        handleResize();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    // Mobile Navigation Effects
+    useEffect(() => {
+        const updateWidth = () => {
+            const width = navViewportRef.current?.getBoundingClientRect().width || 0;
+            navWidthRef.current = width;
+            setNavOffset(-width);
+            setNavDragX(0);
+        };
+        updateWidth();
+        window.addEventListener('resize', updateWidth);
+        return () => window.removeEventListener('resize', updateWidth);
+    }, []);
+
+    const navPrevIndex = (navIndex - 1 + sections.length) % sections.length;
+    const navNextIndex = (navIndex + 1) % sections.length;
+
+    const navGoNext = () => {
+        if (navAnimating || !navWidthRef.current) return;
+        navPendingRef.current = 1;
+        setNavAnimating(true);
+        setNavOffset(-2 * navWidthRef.current);
+    };
+
+    const navGoPrev = () => {
+        if (navAnimating || !navWidthRef.current) return;
+        navPendingRef.current = -1;
+        setNavAnimating(true);
+        setNavOffset(0);
+    };
+
+    const navSnapBack = () => {
+        if (navAnimating || !navWidthRef.current) return;
+        navPendingRef.current = 0;
+        setNavAnimating(true);
+        setNavOffset(-navWidthRef.current);
+    };
+
+    const navHandleTransitionEnd = () => {
+        if (!navAnimating) return;
+        if (navPendingRef.current === 1) {
+            setNavIndex((current) => (current + 1) % sections.length);
+        } else if (navPendingRef.current === -1) {
+            setNavIndex((current) => (current - 1 + sections.length) % sections.length);
+        }
+        navPendingRef.current = 0;
+        setNavAnimating(false);
+        setNavDragX(0);
+        setNavOffset(-navWidthRef.current);
+    };
+
+    const navTouchStart = (event) => {
+        navWidthRef.current = navViewportRef.current?.getBoundingClientRect().width || navWidthRef.current;
+        navDragXRef.current = event.touches[0].clientX;
+    };
+
+    const navTouchMove = (event) => {
+        if (navAnimating || !navWidthRef.current) return;
+        const delta = event.touches[0].clientX - navDragXRef.current;
+        setNavDragX(delta);
+        setNavOffset(-navWidthRef.current + delta);
+    };
+
+    const navTouchEnd = () => {
+        if (navAnimating || !navWidthRef.current) return;
+        const threshold = Math.max(40, navWidthRef.current * 0.18);
+        if (navDragX > threshold) {
+            navGoPrev();
+        } else if (navDragX < -threshold) {
+            navGoNext();
+        } else {
+            navSnapBack();
+        }
+    };
+
+    // -- REAL DATA INTEGRATION --
+    const { address } = useAccount();
+    const { symbol: nativeSymbol } = useNativeCurrency();
+    const [optimisticDelta, setOptimisticDelta] = useState(0); // Tokens added/removed optimistically
+
+    // Fetch FAO Balance
+    const { data: faoBalance, refetch: refetchBalance } = useReadContract({
+        address: FAO_TOKEN_ADDRESS,
+        abi: FAOTokenABI,
+        functionName: 'balanceOf',
+        args: [address],
+        query: { enabled: !!address, pollInterval: portfolioUpdatePending ? 1000 : 5000 }
+    });
+
+    // Callback for child panels to trigger optimistic update
+    // delta: positive for buy (tokens gained), negative for ragequit (tokens burned)
+    const onTransactionSuccess = useCallback((deltaTokens) => {
+        const delta = deltaTokens || 0;
+
+        if (portfolioUpdatePending) {
+            // ALREADY SYNCING: Stack the new delta on top of existing optimistic delta
+            // Example: Was showing 15k, sold 10k (delta=-10k, showing 5k), now buy 20k
+            // New delta should be: -10k + 20k = +10k (so 15k + 10k = 25k displayed)
+            console.log("=== STACKING TRANSACTION ===", {
+                existingDelta: optimisticDelta,
+                newDelta: delta,
+                combined: optimisticDelta + delta
+            });
+
+            const newCombinedDelta = optimisticDelta + delta;
+            const rawBalance = faoBalance ? Number(formatEther(faoBalance)) : 0;
+            const newExpectedBalance = Math.floor(rawBalance + newCombinedDelta);
+
+            previousBalanceRef.current = newExpectedBalance;
+            setOptimisticDelta(newCombinedDelta);
+            // Reset the timer for the new stacked transaction
+            optimisticStartTimeRef.current = Date.now();
+        } else {
+            // FRESH TRANSACTION: Start optimistic update from current RPC balance
+            const currentBalance = faoBalance ? Number(formatEther(faoBalance)) : 0;
+            const expectedBalance = Math.floor(currentBalance + delta);
+
+            console.log("=== NEW OPTIMISTIC UPDATE ===", {
+                currentBalance,
+                delta,
+                expectedBalance
+            });
+
+            previousBalanceRef.current = expectedBalance;
+            setOptimisticDelta(delta);
+            setPortfolioUpdatePending(true);
+        }
+    }, [faoBalance, portfolioUpdatePending, optimisticDelta]);
+
+    // Clear optimistic delta ONLY when RPC returns the expected value
+    useEffect(() => {
+        if (!portfolioUpdatePending || previousBalanceRef.current === null) return;
+
+        // Set start time on first run
+        if (!optimisticStartTimeRef.current) {
+            optimisticStartTimeRef.current = Date.now();
+        }
+
+        // Wait at least 2 seconds before checking (prevent race conditions)
+        const elapsed = Date.now() - optimisticStartTimeRef.current;
+        if (elapsed < 2000) {
+            const waitTimeout = setTimeout(() => { }, 100); // Force re-check
+            return () => clearTimeout(waitTimeout);
+        }
+
+        // Check if RPC balance now matches our expected value
+        const currentBalance = faoBalance ? Math.floor(Number(formatEther(faoBalance))) : 0;
+        const expectedBalance = previousBalanceRef.current;
+
+        console.log("=== OPTIMISTIC CHECK ===", { currentBalance, expectedBalance, elapsed });
+
+        if (currentBalance === expectedBalance) {
+            // RPC caught up to expected value - clear optimistic delta
+            console.log("RPC SYNCED - clearing optimistic state");
+            setOptimisticDelta(0);
+            setPortfolioUpdatePending(false);
+            previousBalanceRef.current = null;
+            optimisticStartTimeRef.current = null;
+            return;
+        }
+
+        // Fallback timeout: clear after 60 seconds (but keep showing real RPC value)
+        const timeout = setTimeout(() => {
+            console.log("FALLBACK TIMEOUT - clearing optimistic state");
+            setOptimisticDelta(0);
+            setPortfolioUpdatePending(false);
+            previousBalanceRef.current = null;
+            optimisticStartTimeRef.current = null;
+        }, 60000);
+
+        return () => clearTimeout(timeout);
+    }, [faoBalance, portfolioUpdatePending]);
+
+    // Fetch Current Price
+    const { data: currentPriceWei } = useReadContract({
+        address: FAO_SALE_ADDRESS,
+        abi: FAOSaleABI,
+        functionName: 'currentPriceWeiPerToken',
+        watch: true,
+    });
+
+    // Add FAO token to MetaMask
+    const addToMetaMask = async () => {
+        if (typeof window.ethereum === 'undefined') {
+            toast.error('MetaMask not detected');
+            return;
+        }
+        try {
+            await window.ethereum.request({
+                method: 'wallet_watchAsset',
+                params: {
+                    type: 'ERC20',
+                    options: {
+                        address: FAO_TOKEN_ADDRESS,
+                        symbol: 'FAO',
+                        decimals: 18,
+                        image: 'https://fao.futarchy.fi/fao-icon.png',
+                    },
+                },
+            });
+            toast.success('FAO token added to wallet!');
+        } catch (error) {
+            toast.error('Failed to add token');
+        }
+    };
+
+    // Calculations - use optimistic delta for immediate feedback
+    const rawHoldings = faoBalance ? Number(formatEther(faoBalance)) : 0;
+    const holdings = rawHoldings + optimisticDelta;
+    const exitValueEth = (holdings * (currentPriceWei ? Number(formatEther(currentPriceWei)) : 0));
+    // Use en-US locale for consistent formatting: 19,010 (comma for thousands, period for decimals)
+    const formattedHoldings = Math.floor(holdings).toLocaleString('en-US');
+    const formattedExitValue = exitValueEth > 0 ? exitValueEth.toFixed(4) : "0.0000";
+
+
+    return (
+        <div className="min-h-[100dvh] bg-black text-white selection:bg-white selection:text-black scroll-smooth flex flex-col">
+            {/* REAL-TIME TOP TICKER */}
+            <LiveTicker />
+
+            {/* PROTOCOL STATUS HUD (PINNED) */}
+
+            {/* Subtle Global Scanline Overlay */}
+            <div className="fixed inset-0 pointer-events-none z-50 opacity-[0.03] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(255,255,255,0.25)_50%),linear-gradient(90deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02),rgba(255,255,255,0.06))] bg-[length:100%_2px,2px_100%]" />
+
+            <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-8 md:py-12 relative z-10 w-full">
+                {/* Website Header */}
+                <header className="flex flex-col gap-4 border-b border-white/10 pb-6 md:pb-12 mb-10 md:mb-16">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                        <div className="flex items-center gap-3 sm:gap-4">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 grayscale brightness-200 cursor-pointer flex-shrink-0" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+                                <ConstructionLogo />
+                            </div>
+                            <h1 className="font-pixel text-xl sm:text-2xl tracking-tighter leading-none whitespace-nowrap">FAO</h1>
+                        </div>
+                        <span className="font-pixel text-[7px] sm:text-[8px] opacity-30 tracking-[0.35em] uppercase sm:ml-2 whitespace-nowrap">
+                            FUTARCHY_AUTONOMOUS_ORGANIZATION
+                        </span>
+                        <div className="w-full sm:w-auto sm:ml-auto flex items-center gap-3 sm:gap-4">
+                            <div className="w-full sm:w-auto">
+                                <ConnectWallet />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* GLOBAL NAVIGATION TABS - now on its own row */}
+                    <div className="relative w-full">
+                        <button
+                            type="button"
+                            onClick={navGoPrev}
+                            className="sm:hidden absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full border border-white/20 bg-black/80 text-white/80 flex items-center justify-center"
+                            aria-label="Scroll navigation left"
+                        >
+                            {'<'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={navGoNext}
+                            className="sm:hidden absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full border border-white/20 bg-black/80 text-white/80 flex items-center justify-center"
+                            aria-label="Scroll navigation right"
+                        >
+                            {'>'}
+                        </button>
+
+                        {/* Mobile carousel */}
+                        <div
+                            ref={navViewportRef}
+                            className="sm:hidden overflow-hidden bg-white/5 p-1 rounded-sm border border-white/5"
+                            onTouchStart={navTouchStart}
+                            onTouchMove={navTouchMove}
+                            onTouchEnd={navTouchEnd}
+                            onTouchCancel={navTouchEnd}
+                        >
+                            <div
+                                className="flex w-[300%]"
+                                onTransitionEnd={navHandleTransitionEnd}
+                                style={{
+                                    transform: `translateX(${navOffset}px)`,
+                                    transition: navAnimating ? 'transform 240ms ease' : 'none',
+                                }}
+                            >
+                                {[navPrevIndex, navIndex, navNextIndex].map((idx) => {
+                                    const section = sections[idx];
+                                    const label = section.label.split(' // ')[1];
+                                    const active = activeSection === section.id;
+                                    return (
+                                        <button
+                                            key={section.id}
+                                            onClick={() => scrollTo(section.id)}
+                                            className={`w-full flex-shrink-0 py-2 font-pixel text-[9px] transition-all whitespace-nowrap flex items-center justify-center text-center ${active
+                                                ? 'bg-white text-black'
+                                                : 'text-white/40 hover:text-white hover:bg-white/5'
+                                                }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Desktop tabs */}
+                        <nav className="hidden sm:flex flex-wrap items-center gap-2 bg-white/5 p-1 rounded-sm border border-white/5 w-full">
+                            {sections.map((s) => (
+                                <button
+                                    key={s.id}
+                                    onClick={() => scrollTo(s.id)}
+                                    className={`px-3 sm:px-4 py-2 font-pixel text-[8px] sm:text-[9px] transition-all whitespace-nowrap ${activeSection === s.id
+                                        ? 'bg-white text-black'
+                                        : 'text-white/40 hover:text-white hover:bg-white/5'
+                                        }`}
+                                >
+                                    {s.label.split(' // ')[1]}
+                                </button>
+                            ))}
+                        </nav>
+                    </div>
+                </header>
+
+                {/* FULL-WIDTH HERO SECTION (BREAKING OUT OF SIDEBARS) */}
+                <section id="manifesto" className="scroll-mt-20 mb-16 md:mb-20">
+                    <div className="relative w-full border border-white/20 bg-black group mb-8 md:mb-12">
+                        <FutarchyVisualizer />
+                    </div>
+
+                    <div className="space-y-6">
+                        <ScrollTypingHeader text="PROTOCOL_GOVERNANCE_ARCHITECTURE" className="ico-header" />
+                        <div className="text-2xl sm:text-3xl xl:text-4xl font-mono leading-tight max-w-5xl text-white/90">
+                            <TypewriterText text="FAO IS AN AUTONOMOUS GOVERNANCE PROTOCOL POWERED BY CONDITIONAL TOKEN MARKETS. WE SEPARATE STRATEGIC VALUES FROM ANALYTICAL BELIEFS TO OPTIMIZE CAPITAL ALLOCATION VIA THE GNOSIS CONDITIONAL TOKEN FRAMEWORK (CTF)." speed={0.01} />
+                        </div>
+                    </div>
+
+                    {/* LIVE PROTOCOL STATS */}
+                    <div className="mt-8">
+                        <ProtocolStats />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 pt-10 md:pt-12 border-t border-white/10 mt-10 md:mt-12">
+                        <div className="phase-card space-y-6 p-5 md:p-8">
+                            <div className="flex justify-between items-start">
+                                <div className="space-y-4">
+                                    <h3 className="font-pixel text-sm flex items-center gap-3">
+                                        PHASE_0: COLLATERAL_ACCUMULATION
+                                        <span className="bg-green-500 text-black px-2 py-0.5 text-[8px] animate-pulse">ACTIVE</span>
+                                    </h3>
+                                    <p className="text-white/50 font-mono text-sm leading-relaxed">
+                                        Initial 14-day window. FAO is priced at a constant floor to ensure fair-start liquidity depth before curve activation.
+                                    </p>
+                                </div>
+                            </div>
+                            <PhaseCountdown />
+                        </div>
+                        <div className="phase-card space-y-6 p-5 md:p-8">
+                            <div className="space-y-4">
+                                <h3 className="font-pixel text-sm text-white/40">PHASE_1: ALGORITHMIC_EXPANSION</h3>
+                                <p className="text-white/30 font-mono text-sm leading-relaxed">
+                                    The mathematical expansion phase. Price increases proportionally with supply, following a predefined P = m * S + b slope.
+                                </p>
+                                <div className="h-14 sm:h-16 md:h-20 w-full border border-white/5 bg-white/2 flex items-end px-3 sm:px-4 py-2 gap-1 overflow-hidden relative">
+                                    {[...Array(20)].map((_, i) => (
+                                        <div key={i} className="bg-white/10 flex-1" style={{ height: `${(i + 1) * 5}%` }} />
+                                    ))}
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <span className="font-pixel text-[8px] opacity-20">LOCKED_UNTIL_PHASE_I</span>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setShowCurveInfo(!showCurveInfo)}
+                                    className="font-pixel text-[8px] text-white underline tracking-widest hover:opacity-100 opacity-60 uppercase"
+                                >
+                                    [ {showCurveInfo ? 'HIDE_TECHNICAL_SPEC' : 'EXPLORE_BONDING_CURVE_MECHANICS'} ]
+                                </button>
+                            </div>
+
+                            <AnimatePresence>
+                                {showCurveInfo && (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="p-6 md:p-8 border border-white bg-white/5 space-y-4 overflow-hidden"
+                                    >
+                                        <h4 className="font-pixel text-xs tracking-widest">EXPANSION_TECHNICAL_SPEC</h4>
+                                        <p className="font-mono text-xs leading-relaxed text-white/60">
+                                            THE LINEAR BONDING CURVE ENSURES THAT EVERY FAO TOKEN MINTED INCREASES THE PER-TOKEN COST IN A PURELY MATHEMATICAL RELATIONSHIP: P = m * S + b. GUARANTEEING LIQUIDITY VIA THE UNDERLYING TREASURY.
+                                        </p>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    </div>
+                </section>
+
+                <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_440px] xl:grid-cols-[minmax(0,1fr)_480px] gap-8 xl:gap-16 items-start">
+                    {/* MAIN SCROLLABLE CONTENT */}
+                    <main className="flex-1 min-w-0 space-y-16 md:space-y-32 xl:space-y-40 pb-24 md:pb-32">
+                        {/* SECTION 02: KNOWLEDGE_BASE */}
+                        <section id="intel" className="space-y-16 md:space-y-24 scroll-mt-20">
+                            <div className="space-y-4">
+                                <ScrollTypingHeader text="PROTOCOL_GOVERNANCE_INTEL" className="ico-header text-3xl sm:text-4xl lg:text-5xl" />
+                                <p className="opacity-40 font-pixel text-[8px] tracking-[0.4em] uppercase italic">// SOURCE: GOVERNANCE_OPERATING_MANUAL_V1.2</p>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
+                                {/* Core Concept */}
+                                <div className="space-y-6 md:space-y-8 p-6 md:p-10 border border-white/20 bg-white/[0.02]">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-full border border-blue-500/40 flex items-center justify-center font-pixel text-blue-500 text-xs">01</div>
+                                        <h3 className="font-pixel text-lg tracking-tighter">VALUES_VS_BELIEFS</h3>
+                                    </div>
+                                    <p className="font-mono text-white/60 leading-relaxed text-sm md:text-base">
+                                        FUTARCHY TARGETS THE CORE INEFFICIENCY OF GOVERNANCE: THE BLURRING OF INTENT (VALUES) AND EXECUTION (BELIEFS).
+                                        IN OUR SYSTEM, <span className="text-white font-bold uppercase">HUMANS DECIDE THE TARGET OUTCOME</span> (E.G., TOKEN PRICE GROWTH),
+                                        WHILE <span className="text-white font-bold uppercase">MARKETS AGGREGATE INFORMATION</span> TO DETERMINE THE BEST PATH TO THAT OUTCOME.
+                                    </p>
+                                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
+                                        <div className="space-y-2">
+                                            <div className="font-pixel text-[8px] opacity-30 uppercase tracking-widest">HUMAN_ROLE</div>
+                                            <div className="text-[10px] font-mono opacity-80 uppercase">DEFINE_SUCCESS_METRIC</div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <div className="font-pixel text-[8px] opacity-30 uppercase tracking-widest">MARKET_ROLE</div>
+                                            <div className="text-[10px] font-mono opacity-80 uppercase">EXECUTE_OPTIMAL_PATH</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Counterfactual Worlds */}
+                                <div className="space-y-6 md:space-y-8 p-6 md:p-10 border border-white/10 bg-black">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-full border border-yellow-500/40 flex items-center justify-center font-pixel text-yellow-500 text-xs">02</div>
+                                        <h3 className="font-pixel text-lg tracking-tighter">COUNTERFACTUAL_EXP</h3>
+                                    </div>
+                                    <p className="font-mono text-white/50 leading-relaxed italic">
+                                        "WHAT IF THE PROPOSAL IS APPROVED? WHAT IF IT IS NOT?"
+                                    </p>
+                                    <p className="font-mono text-white/60 leading-relaxed">
+                                        FOR EVERY GOVERNANCE PROPOSAL, WE INITIALIZE TWO PARALLEL WORLDS: <span className="text-blue-400">YES (APPROVAL)</span> AND <span className="text-yellow-400">NO (REJECTION)</span>.
+                                        TRADERS DO NOT BET ON THE FUTURE; THEY TRADE ON <span className="text-white font-bold opacity-100">CONDITIONAL EXPOSURE</span>.
+                                        POSITIONS ONLY LEGALIZE IF THE CORRESPONDING WORLD OCCURS ON-CHAIN.
+                                    </p>
+                                    <div className="flex items-center gap-6 pt-4 border-t border-white/5">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-blue-500" />
+                                            <span className="font-pixel text-[8px] opacity-40 uppercase">WORLD_ALPHA</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                                            <span className="font-pixel text-[8px] opacity-40 uppercase">WORLD_BETA</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Deep Trading Logic */}
+                            <div className="p-8 md:p-12 border border-white/5 bg-white/[0.01] space-y-10 md:space-y-12">
+                                <div className="max-w-3xl space-y-6">
+                                    <h3 className="font-pixel text-2xl tracking-tighter uppercase leading-none">SECURED_BY_GNOSIS_CFT</h3>
+                                    <p className="font-mono text-base md:text-lg text-white/50 leading-relaxed uppercase">
+                                        SECURED BY THE INDUSTRY-STANDARD GNOSIS CONDITIONAL TOKEN FRAMEWORK (CTF) - THE SAME CRYPTOGRAPHIC ARCHITECTURE PROTECTING BILLIONS IN TVL.
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-12">
+                                    <div className="space-y-4">
+                                        <div className="font-pixel text-[8px] text-white/30 uppercase tracking-[0.3em]">/ COLLATERAL_SPLITTING</div>
+                                        <p className="font-mono text-xs text-white/40 leading-relaxed lowercase">
+                                            your currency is first split into YES_CURRENCY and NO_CURRENCY. this represents your collateral in each of the two possible worlds.
+                                        </p>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div className="font-pixel text-[8px] text-white/30 uppercase tracking-[0.3em]">/ DETERMINISTIC_SETTLEMENT</div>
+                                        <p className="font-mono text-xs text-white/40 leading-relaxed lowercase">
+                                            if a proposal fails, NO_CURRENCY is redeemable back to original currency. if it passes, YES_TOKEN becomes the underlying project asset.
+                                        </p>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div className="font-pixel text-[8px] text-white/30 uppercase tracking-[0.3em]">/ INFORMATION_HARVESTING</div>
+                                        <p className="font-mono text-xs text-white/40 leading-relaxed lowercase">
+                                            as participants trade in both markets, prices adjust to balance all views. the price delta represents the expected impact of the decision.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="pt-10 md:pt-12 border-t border-white/5 flex flex-col md:flex-row gap-8 md:gap-12">
+                                    <div className="flex flex-col gap-2">
+                                        <span className="font-pixel text-[8px] opacity-20 uppercase tracking-widest">SYSTEM_VERSION</span>
+                                        <span className="font-mono text-xs opacity-60 italic">FAO_PROTOCOL_V4.2</span>
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <span className="font-pixel text-[8px] opacity-20 uppercase tracking-widest">NETWORK_DEPLOYMENT</span>
+                                        <span className="font-mono text-xs opacity-60 italic">GNOSIS_CHAIN_MAINTNET</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Practical Example Scenario */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                                <div className="space-y-6">
+                                    <h4 className="font-pixel text-xl tracking-tighter uppercase">PRACTICAL_SCENARIO: PROPOSAL_#84</h4>
+                                    <div className="p-6 border-l-2 border-blue-500 bg-white/[0.02] space-y-4 font-mono text-sm uppercase">
+                                        <p className="text-white">PROPOSAL: ALLOCATE 1M USDC TO PROTOCOL_MARKETING</p>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1">
+                                                <span className="text-[8px] opacity-40">YES_MARKET_PRICE</span>
+                                                <div className="text-blue-400 font-black">$1.45</div>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[8px] opacity-40">NO_MARKET_PRICE</span>
+                                                <div className="text-yellow-400 font-black">$1.32</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p className="font-mono text-sm text-white/50 leading-relaxed uppercase">
+                                        IN THIS SCENARIO, THE MARKET PREDICTS A <span className="text-white font-bold">$0.13 VALUE UPLIFT</span> IF THE MARKETING BUDGET IS APPROVED. THE PROTOCOL AUTOMATICALLY EXECUTES THE APPROVAL BASED ON THIS DELTA.
+                                    </p>
+                                </div>
+                                <div className="border border-white/10 p-8 space-y-6">
+                                    <div className="space-y-2">
+                                        <div className="font-pixel text-[8px] opacity-30 tracking-[0.3em]">DECISION_MATRIX</div>
+                                        <div className="h-2 w-full bg-white/5 overflow-hidden">
+                                            <div className="h-full bg-blue-500 w-[65%]" />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-4 font-mono text-[10px] text-white/40 uppercase">
+                                        <div className="flex justify-between">
+                                            <span>MARKET_CONFIDENCE</span>
+                                            <span className="text-white opacity-100">89.2%</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span>SETTLEMENT_ETD</span>
+                                            <span className="text-white opacity-100">48H_00M</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* SECTION 03: TRANSACTION_LOG */}
+                        <section id="audit" className="space-y-12 scroll-mt-20">
+                            <div className="space-y-4">
+                                <ScrollTypingHeader text="TRANSACTION_LOG" className="ico-header px-4 py-2 border border-white/10 inline-block" />
+                                <div className="flex gap-4 items-center">
+                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                    <span className="text-[8px] font-pixel opacity-40 uppercase tracking-[0.4em]">VERIFIED_ON_CHAIN_TRANSMISSION</span>
+                                </div>
+                            </div>
+
+                            <ActivityCarousel />
+
+                            <div className="border border-white/10 overflow-hidden bg-white/2">
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-[640px] w-full text-left font-mono text-[10px] md:text-xs">
+                                        <thead>
+                                            <tr className="border-b border-white/10 bg-white/5">
+                                                <th className="p-4 md:p-6 font-pixel text-[8px] opacity-40 uppercase">COMMAND</th>
+                                                <th className="p-4 md:p-6 font-pixel text-[8px] opacity-40 uppercase whitespace-nowrap">TRANSACTION HASH</th>
+                                                <th className="p-4 md:p-6 font-pixel text-[8px] opacity-40 uppercase">MAGNITUDE</th>
+                                                <th className="p-4 md:p-6 font-pixel text-[8px] opacity-40 uppercase whitespace-nowrap">TIME RELATIVE</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-white/5">
+                                            {liveTransactions.slice(0, 10).map((tx, i) => (
+                                                <tr key={tx.id || i} className="hover:bg-white/5 transition-colors group">
+                                                    <td className="p-4 md:p-6 uppercase">
+                                                        <span className={`px-2 py-1 font-pixel text-[9px] ${tx.type === 'BUY' ? 'bg-blue-600 text-white' :
+                                                            tx.type === 'RAGEQUIT' ? 'bg-red-600 text-white' :
+                                                                'bg-white text-black'
+                                                            }`}>
+                                                            {tx.type}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4 md:p-6 font-mono opacity-60 group-hover:opacity-100 transition-opacity">
+                                                        <a
+                                                            href={`https://gnosisscan.io/tx/${tx.txHash}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="hover:underline"
+                                                        >
+                                                            {tx.txHash.slice(0, 12)}...{tx.txHash.slice(-8)}
+                                                        </a>
+                                                    </td>
+                                                    <td className="p-4 md:p-6 font-black">{tx.amount} xDAI</td>
+                                                    <td className="p-4 md:p-6 opacity-40 whitespace-nowrap">{tx.relativeTime}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* SECTION: SMART CONTRACT SOURCE */}
+                        <section id="contracts" className="space-y-12 scroll-mt-20">
+                            <div className="space-y-4">
+                                <ScrollTypingHeader text="PROTOCOL_SOURCE_CODE" className="ico-header px-4 py-2 border border-white/10 inline-block" />
+                                <div className="flex gap-4 items-center">
+                                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                                    <span className="text-[8px] font-pixel opacity-40 uppercase tracking-[0.4em]">VERIFIED_MIT_LICENSE // OPEN_TRANSPARENCY</span>
+                                </div>
+                            </div>
+                            <ContractCodeViewer />
+                        </section>
+
+                        {/* SECTION 04: PARTICIPATION */}
+                        <section id="governance" className="scroll-mt-20 py-24 md:py-40 border-t border-white/10">
+                            <div className="max-w-5xl space-y-12 md:space-y-16">
+                                <div className="space-y-6">
+                                    <h2 className="font-pixel text-3xl sm:text-4xl md:text-5xl tracking-tighter leading-tight break-words">
+                                        JOIN_FUTARCHY
+                                    </h2>
+                                    <p className="text-lg md:text-xl font-mono text-white/50 leading-relaxed uppercase max-w-3xl">
+                                        JOIN THE COMMUNITY. CONTRIBUTE TO GOVERNANCE. SHAPE THE FUTURE OF DECENTRALIZED DECISION-MAKING.
+                                    </p>
+                                </div>
+
+                                {/* Big Social Links Grid */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                                    {/* Discord - Featured */}
+                                    <a
+                                        href="https://discord.gg/ATzpEDKq6Z"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="col-span-2 md:col-span-2 group p-8 md:p-12 border-2 border-[#5865F2]/30 bg-[#5865F2]/5 hover:bg-[#5865F2]/10 hover:border-[#5865F2]/60 transition-all flex flex-col items-center justify-center gap-4"
+                                    >
+                                        <svg className="w-16 h-16 md:w-24 md:h-24 text-[#5865F2] group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+                                        </svg>
+                                        <div className="text-center">
+                                            <div className="font-pixel text-lg md:text-xl text-[#5865F2] tracking-wider">DISCORD</div>
+                                            <div className="font-mono text-[10px] text-white/40 uppercase mt-1">JOIN_THE_COMMUNITY</div>
+                                        </div>
+                                    </a>
+
+                                    {/* X (Twitter) */}
+                                    <a
+                                        href="https://x.com/_futarchy"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="group p-6 md:p-8 border border-white/20 hover:border-white/40 hover:bg-white/5 transition-all flex flex-col items-center justify-center gap-3"
+                                    >
+                                        <svg className="w-10 h-10 md:w-12 md:h-12 text-white/60 group-hover:text-white group-hover:scale-110 transition-all" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                                        </svg>
+                                        <div className="text-center">
+                                            <div className="font-pixel text-sm text-white/80 tracking-wider">X / TWITTER</div>
+                                            <div className="font-mono text-[9px] text-white/30 uppercase mt-1">@_futarchy</div>
+                                        </div>
+                                    </a>
+
+                                    {/* GitHub */}
+                                    <a
+                                        href="https://github.com/futarchy-fi"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="group p-6 md:p-8 border border-white/20 hover:border-white/40 hover:bg-white/5 transition-all flex flex-col items-center justify-center gap-3"
+                                    >
+                                        <svg className="w-10 h-10 md:w-12 md:h-12 text-white/60 group-hover:text-white group-hover:scale-110 transition-all" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                                        </svg>
+                                        <div className="text-center">
+                                            <div className="font-pixel text-sm text-white/80 tracking-wider">GITHUB</div>
+                                            <div className="font-mono text-[9px] text-white/30 uppercase mt-1">SOURCE_CODE</div>
+                                        </div>
+                                    </a>
+                                </div>
+
+                                {/* Additional Links */}
+                                <div className="flex flex-wrap gap-4 pt-4 border-t border-white/10">
+                                    <a
+                                        href="https://app.futarchy.fi"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="terminal-button !py-4 !px-8 flex items-center gap-3"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3" />
+                                        </svg>
+                                        [ FUTARCHY_APP ]
+                                    </a>
+                                </div>
+                            </div>
+                        </section>
+                    </main >
+
+                    {/* RIGHT STICKY SIDEBAR (TRADING) */}
+                    < aside className="w-full lg:max-w-[440px] xl:max-w-[480px] lg:sticky lg:top-12 lg:self-start" >
+                        <div className="space-y-8">
+                            {/* Personal Portfolio Card */}
+                            <div className="p-8 border border-white/20 bg-white/5 relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-4 opacity-10 font-pixel text-[40px] pointer-events-none group-hover:opacity-20 transition-opacity uppercase">FAO</div>
+
+                                {/* Blur overlay when not connected */}
+                                {!address && (
+                                    <div className="absolute inset-0 z-20 flex items-center justify-center flex-col text-center p-6 backdrop-blur-sm bg-black/80">
+                                        <span className="font-pixel font-bold text-xs mb-2 tracking-widest">WALLET_NOT_CONNECTED</span>
+                                        <p className="text-[9px] font-pixel text-white/40">Connect wallet to view portfolio</p>
+                                    </div>
+                                )}
+
+                                {/* Subtle indicator when optimistic update is pending */}
+                                {portfolioUpdatePending && address && (
+                                    <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 px-2 py-1 bg-black/60 rounded-sm">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                                        <span className="font-pixel text-[7px] text-green-500/80 tracking-wider">SYNCING...</span>
+                                    </div>
+                                )}
+
+                                <div className="flex justify-between items-center mb-8">
+                                    <h3 className="font-pixel text-[10px] tracking-[0.3em] opacity-30 uppercase">/IDENTIFIED_PORTFOLIO</h3>
+                                    <div className="flex items-center gap-2">
+                                        {isSyncing && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />}
+                                        <span className="font-mono text-[8px] opacity-30">
+                                            {lastSyncedAtUTC ? `SYNCED: ${lastSyncedAtUTC}` : 'SYNCING...'}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="space-y-8">
+                                    <div className="flex justify-between items-end">
+                                        <div className="flex flex-col">
+                                            <span className="text-[8px] font-pixel opacity-20 uppercase mb-1">HOLDINGS</span>
+                                            <span className="text-4xl font-mono font-black">{formattedHoldings}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-pixel text-[10px] opacity-40 mb-1 tracking-widest">FAO</span>
+                                            <button
+                                                onClick={addToMetaMask}
+                                                className="group relative p-1.5 hover:bg-white/10 rounded transition-colors"
+                                                title="Add FAO to MetaMask"
+                                            >
+                                                {/* MetaMask Fox SVG */}
+                                                <svg width="16" height="16" viewBox="0 0 318.6 318.6" className="opacity-40 group-hover:opacity-100 transition-opacity">
+                                                    <polygon fill="#E2761B" points="274.1,35.5 174.6,109.4 193,65.8" />
+                                                    <polygon fill="#E4761B" points="44.4,35.5 143.1,110.1 125.6,65.8" />
+                                                    <polygon fill="#D7C1B3" points="238.3,206.8 211.8,247.4 268.5,263 284.8,207.7" />
+                                                    <polygon fill="#D7C1B3" points="33.9,207.7 50.1,263 106.8,247.4 80.3,206.8" />
+                                                    <polygon fill="#233447" points="103.6,138.2 87.8,162.1 143.8,164.6 141.7,104.3" />
+                                                    <polygon fill="#233447" points="214.9,138.2 175.9,103.4 174.6,164.6 230.8,162.1" />
+                                                    <polygon fill="#CD6116" points="106.8,247.4 140.6,230.9 111.4,208.1" />
+                                                    <polygon fill="#CD6116" points="177.9,230.9 211.8,247.4 207.1,208.1" />
+                                                    <polygon fill="#E4751F" points="211.8,247.4 177.9,230.9 180.6,253.3 180.3,262.3" />
+                                                    <polygon fill="#E4751F" points="106.8,247.4 138.3,262.3 138.1,253.3 140.6,230.9" />
+                                                    <polygon fill="#F6851B" points="138.8,193.5 110.6,185.2 130.5,176.1" />
+                                                    <polygon fill="#F6851B" points="179.7,193.5 188,176.1 208,185.2" />
+                                                    <polygon fill="#C0AD9E" points="106.8,247.4 111.6,206.8 80.3,207.7" />
+                                                    <polygon fill="#C0AD9E" points="207,206.8 211.8,247.4 238.3,207.7" />
+                                                    <polygon fill="#763D16" points="230.8,162.1 174.6,164.6 179.8,193.5 188.1,176.1 208.1,185.2" />
+                                                    <polygon fill="#763D16" points="110.6,185.2 130.6,176.1 138.8,193.5 143.8,164.6 87.8,162.1" />
+                                                    <polygon fill="#E2761B" points="87.8,162.1 111.4,208.1 110.6,185.2" />
+                                                    <polygon fill="#E2761B" points="208.1,185.2 207.1,208.1 230.8,162.1" />
+                                                    <polygon fill="#F6851B" points="143.8,164.6 138.8,193.5 145.1,227.6 146.6,182.4 143.8,164.6" />
+                                                    <polygon fill="#F6851B" points="174.6,164.6 171.9,182.3 173.1,227.6 179.8,193.5" />
+                                                </svg>
+                                                <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black border border-white/20 text-white text-[7px] font-pixel px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">ADD_TO_WALLET</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="p-4 border border-white/10 bg-black">
+                                            <span className="text-[7px] font-pixel opacity-20 block mb-1 uppercase">FAO_PRICE</span>
+                                            <span className="font-mono text-sm leading-none">{sale?.currentPrice || '0.0001'} {nativeSymbol}</span>
+                                        </div>
+                                        <div className="p-4 border border-white bg-white text-black">
+                                            <span className="text-[7px] font-pixel opacity-60 block mb-1 uppercase">EXIT_VALUE (EST)</span>
+                                            <span className="font-mono text-sm leading-none underline decoration-2">{formattedExitValue} {nativeSymbol}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Main Trade Console */}
+                            <div className="flex flex-col border border-white shadow-[0_0_60px_rgba(255,255,255,0.05)] bg-black">
+                                <div className="flex border-b border-white">
+                                    <button
+                                        onClick={() => setTradeMode('buy')}
+                                        className={`flex-1 py-4 font-pixel text-[9px] tracking-widest transition-all ${tradeMode === 'buy'
+                                            ? 'bg-white text-black'
+                                            : 'hover:bg-black/5 opacity-40'
+                                            }`}
+                                    >
+                                        [ SECURE_FAO ]
+                                    </button>
+                                    <button
+                                        onClick={() => setTradeMode('exit')}
+                                        className={`flex-1 py-4 font-pixel text-[9px] tracking-widest transition-all ${tradeMode === 'exit'
+                                            ? 'bg-white text-black'
+                                            : 'hover:bg-black/5 opacity-40'
+                                            }`}
+                                    >
+                                        [ TERMINATE ]
+                                    </button>
+                                </div>
+                                <div className="p-2">
+                                    {tradeMode === 'buy' ? <BuyPanel onTransactionSuccess={onTransactionSuccess} /> : <RagequitPanel onTransactionSuccess={onTransactionSuccess} />}
+                                </div>
+                            </div>
+
+                            <div className="p-6 border border-white/5 font-mono text-[9px] opacity-20 italic leading-relaxed uppercase tracking-widest">
+                                DAO_CLEARANCE_LEVEL: ALPHA // SECURE_SOCKET: ENABLED // BY_OPERATING_THIS_TERMINAL_YOU_ACCEPT_ON_CHAIN_DYNAMICS.
+                            </div>
+                        </div>
+                    </aside >
+                </div >
+
+                {/* Website Footer */}
+                < footer className="mt-24 md:mt-32 pt-12 md:pt-16 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8 pb-12" >
+                    {/* Social Links */}
+                    < div className="flex items-center gap-6" >
+                        {/* Discord */}
+                        < a href="https://discord.gg/ATzpEDKq6Z" target="_blank" rel="noopener noreferrer"
+                            className="opacity-40 hover:opacity-100 transition-opacity" title="Discord" >
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+                            </svg>
+                        </a >
+                        {/* X (Twitter) */}
+                        < a href="https://x.com/_futarchy" target="_blank" rel="noopener noreferrer"
+                            className="opacity-40 hover:opacity-100 transition-opacity" title="X (Twitter)" >
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                            </svg>
+                        </a >
+                        {/* Website */}
+                        < a href="https://app.futarchy.fi" target="_blank" rel="noopener noreferrer"
+                            className="opacity-40 hover:opacity-100 transition-opacity" title="Futarchy App" >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+                            </svg>
+                        </a >
+                        {/* GitHub */}
+                        < a href="https://github.com/futarchy-fi" target="_blank" rel="noopener noreferrer"
+                            className="opacity-40 hover:opacity-100 transition-opacity" title="GitHub" >
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                            </svg>
+                        </a >
+                    </div >
+                    <div className="font-pixel text-[8px] opacity-20 tracking-[0.5em] uppercase">
+                        FAO_AUTONOMOUS_NETWORK // EST_2024
+                    </div>
+                </footer >
+            </div >
+        </div >
+    );
 }
+
