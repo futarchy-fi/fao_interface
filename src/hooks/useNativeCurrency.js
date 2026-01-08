@@ -9,9 +9,13 @@ import { useChainId } from 'wagmi';
  * - symbol: "xDAI" for Gnosis (100), "ETH" for others
  * - price: Fixed $1.00 for xDAI, fetched price for ETH.
  * - isLoading: Loading state for price fetch.
+ * 
+ * Defaults to Gnosis Chain (100) when no wallet is connected.
  */
 export function useNativeCurrency() {
-    const chainId = useChainId();
+    const connectedChainId = useChainId();
+    // Default to Gnosis Chain (100) when not connected
+    const chainId = connectedChainId || 100;
     const [price, setPrice] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
 

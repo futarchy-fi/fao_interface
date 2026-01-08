@@ -2,12 +2,35 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useETHPrice } from '../hooks/useETHPrice';
+import { useSubgraphData } from '../hooks/useSubgraphData';
+import { useNativeCurrency } from '../hooks/useNativeCurrency';
+
+/**
+ * Format large numbers with K/M suffix (with space for clarity)
+ */
+function formatNumber(num) {
+    if (!num) return '0';
+    const n = Number(num);
+    if (n >= 1e9) return (n / 1e9).toFixed(2) + ' B';
+    if (n >= 1e6) return (n / 1e6).toFixed(2) + ' M';
+    if (n >= 1e3) return (n / 1e3).toFixed(2) + ' K';
+    return n.toLocaleString();
+}
 
 export default function StatusHUD() {
-    const { price } = useETHPrice();
-    const faoPriceEth = 0.0034; // Static protocol price for Phase 1
-    const faoPriceUsd = price ? (faoPriceEth * price).toFixed(4) : '...';
+    // Use native currency for both symbol and price (xDAI=$1, ETH=fetched)
+    const { symbol: nativeSymbol, price: nativePrice, isGnosis } = useNativeCurrency();
+    const { sale, lastSyncedAtUTC, isLoading } = useSubgraphData({ pollInterval: 30000 });
+
+    // Live data from subgraph
+    const tvl = sale?.totalAmountRaised || '0.00';
+    const circulating = sale?.circulatingSupply || '0';
+    const currentPrice = sale?.currentPrice || '0.0000';
+
+    // Calculate USD values using native currency price (xDAI=$1, ETH=market price)
+    const tvlUsd = nativePrice ? (parseFloat(tvl) * nativePrice).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '...';
+    const priceUsd = nativePrice ? (parseFloat(currentPrice) * nativePrice).toFixed(4) : '...';
+
     const [mounted, setMounted] = useState(false);
     const [order, setOrder] = useState([0, 1, 2]);
     const [width, setWidth] = useState(0);
@@ -34,9 +57,9 @@ export default function StatusHUD() {
     }, []);
 
     const stats = [
-        { label: 'PROTOCOL_TREASURY', value: '1,420.69 ETH', subValue: `$${price ? (1420.69 * price).toLocaleString() : '...'} USD` },
-        { label: 'CIRCULATING_SUPPLY', value: '254,000 FAO', subValue: 'PHASE_1_RESERVE' },
-        { label: 'CURRENT_FAO_PRICE', value: `${faoPriceEth} ETH`, subValue: `ƒ%^ $${faoPriceUsd} USD` },
+        { label: 'PROTOCOL_TREASURY', value: `${tvl} ${nativeSymbol}`, subValue: `$${tvlUsd} USD` },
+        { label: 'CIRCULATING_SUPPLY', value: `${formatNumber(circulating)} FAO`, subValue: sale?.initialPhaseFinalized ? 'CURVE_PHASE' : 'PHASE_1_ACTIVE' },
+        { label: 'CURRENT_FAO_PRICE', value: `${currentPrice} ${nativeSymbol}`, subValue: `ƒ%^ $${priceUsd} USD` },
     ];
 
     const rotateNext = () => {
@@ -137,10 +160,12 @@ export default function StatusHUD() {
 
                 <div className="flex items-center gap-3 flex-shrink-0 px-4 sm:px-6 pt-2 sm:pt-0 absolute right-0 top-0 bottom-0 sm:static sm:pt-0 sm:pb-0 sm:pr-0 sm:pl-0">
                     <div className="relative">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                        <div className="absolute inset-0 w-2 h-2 rounded-full bg-green-500 animate-ping opacity-20" />
+                        <div className={`w-2 h-2 rounded-full ${isLoading ? 'bg-yellow-500' : 'bg-green-500'} animate-pulse`} />
+                        <div className={`absolute inset-0 w-2 h-2 rounded-full ${isLoading ? 'bg-yellow-500' : 'bg-green-500'} animate-ping opacity-20`} />
                     </div>
-                    <span className="text-[8px] font-pixel opacity-30 uppercase tracking-tighter">LIVE_SYNC</span>
+                    <span className="text-[8px] font-pixel opacity-30 uppercase tracking-tighter">
+                        {isLoading ? 'SYNCING...' : lastSyncedAtUTC ? `SYNCED_${lastSyncedAtUTC}` : 'LIVE_SYNC'}
+                    </span>
                 </div>
 
                 {/* Mobile carousel */}

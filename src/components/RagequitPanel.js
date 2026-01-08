@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useAccount, useReadContract, useWalletClient } from 'wagmi';
-import { parseEther, formatEther } from 'viem';
+import { useAccount, useReadContract, useWalletClient, usePublicClient } from 'wagmi';
+import { parseEther, formatEther, encodeFunctionData } from 'viem';
 import { useFAOContract, FAO_SALE_ADDRESS, FAO_TOKEN_ADDRESS } from '../hooks/useFAOContract';
 import { useApproveAndCall } from '../hooks/useApproveAndCall';
 import { useNativeCurrency } from '../hooks/useNativeCurrency';
+import { useSubgraphData } from '../hooks/useSubgraphData';
 import { toast } from 'sonner';
 import TransactionConfirmModal from './TransactionConfirmModal';
 import FAOSaleABI from '../abi/FAOSale.json';
@@ -19,6 +20,8 @@ export default function RagequitPanel() {
     const { approveAndCall, isLoading: isHandling } = useApproveAndCall();
     const { address } = useAccount();
     const { data: walletClient } = useWalletClient();
+    const publicClient = usePublicClient();
+    const { refetch: refetchSubgraph } = useSubgraphData();
 
     // Fetch current price for estimation
     const { data: currentPriceWei } = useReadContract({
@@ -51,7 +54,16 @@ export default function RagequitPanel() {
     const executeRagequit = async () => {
         setIsModalOpen(false);
 
-        if (!walletClient) return;
+        if (!walletClient || !publicClient) {
+            console.error("Wallet or public client not ready");
+            return;
+        }
+
+        console.log("=== RAGEQUIT DEBUG ===");
+        console.log("Amount input:", amount);
+        console.log("FAO_SALE_ADDRESS:", FAO_SALE_ADDRESS);
+        console.log("FAO_TOKEN_ADDRESS:", FAO_TOKEN_ADDRESS);
+        console.log("User address:", address);
 
         // 1. Parse input to Wei (e.g. "1.5" -> 1.5e18)
         const rawAmountWei = parseEther(amount);
@@ -59,6 +71,9 @@ export default function RagequitPanel() {
         // 2. Calculate Whole Tokens (floor) because contract expects uint256 numTokens
         // Example: 1.5e18 / 1e18 = 1n
         const numTokensBigInt = rawAmountWei / BigInt(1e18);
+
+        console.log("rawAmountWei:", rawAmountWei.toString());
+        console.log("numTokensBigInt:", numTokensBigInt.toString());
 
         if (numTokensBigInt === 0n) {
             toast.error("AMOUNT_TOO_LOW: Minimum 1 Token");
@@ -68,6 +83,7 @@ export default function RagequitPanel() {
         // 3. Recalculate exact Wei to approve/burn based on whole tokens
         // Example: 1n * 1e18 = 1e18 Wei
         const exactWeiToBurn = numTokensBigInt * BigInt(1e18);
+        console.log("exactWeiToBurn:", exactWeiToBurn.toString());
 
         // useApproveAndCall handles the Approval then executes onAction
         // We approve the EXACT Wei amount needed for the whole tokens
@@ -77,15 +93,23 @@ export default function RagequitPanel() {
             amountWei: exactWeiToBurn,
             actionName: "RAGEQUIT",
             onAction: async () => {
-                return await walletClient.writeContract({
+                console.log("=== EXECUTING RAGEQUIT CONTRACT CALL ===");
+                console.log("Calling ragequit with numTokens:", numTokensBigInt.toString());
+
+                // Use writeContract for proper contract interaction display
+                const hash = await walletClient.writeContract({
                     address: FAO_SALE_ADDRESS,
                     abi: FAOSaleABI,
                     functionName: 'ragequit',
-                    args: [numTokensBigInt] // Contract expects COUNT (e.g. 1) not WEI (e.g. 1e18)
+                    args: [numTokensBigInt],
                 });
+                console.log("Transaction hash:", hash);
+                return hash;
             },
             onSuccess: () => {
                 setAmount('');
+                // Refetch subgraph data after successful transaction
+                setTimeout(() => refetchSubgraph(), 2000);
             }
         });
     };
@@ -151,6 +175,7 @@ export default function RagequitPanel() {
                 onClose={() => setIsModalOpen(false)}
                 onConfirm={executeRagequit}
                 data={{
+                    type: 'ragequit',
                     amount: amount,
                     receiveAmount: estimatedNative.toFixed(4),
                     distribution: distribution,

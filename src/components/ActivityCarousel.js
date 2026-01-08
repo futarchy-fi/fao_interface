@@ -2,26 +2,41 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
-
-const REAL_EVENTS = [
-    { id: 1, type: 'startSale()', user: 'ADMIN_NODE', amount: '0 xDAI', val: '0x3820..9c9e', time: '27D AGO' },
-    { id: 2, type: 'buy()', user: 'USER_NODE', amount: '0.0001 xDAI', val: '0x2a34..dafa', time: '27D AGO' },
-    { id: 3, type: 'ragequit()', user: 'USER_NODE', amount: '0 xDAI', val: '0x26c7..e747', time: '27D AGO', isRagequit: true },
-    { id: 4, type: 'buy()', user: 'USER_NODE', amount: '0.001 xDAI', val: '0x111c..7795', time: '27D AGO' },
-    { id: 5, type: 'withdraw()', user: 'ADMIN_NODE', amount: '0 xDAI', val: '0xe327..87e7', time: '27D AGO' },
-];
+import { useSubgraphData } from '../hooks/useSubgraphData';
+import { useNativeCurrency } from '../hooks/useNativeCurrency';
 
 export default function ActivityCarousel() {
     const [index, setIndex] = useState(0);
+    const { transactions } = useSubgraphData({ pollInterval: 30000 });
+    const { symbol: nativeSymbol } = useNativeCurrency();
+
+    // Map transactions to carousel format
+    const events = transactions.slice(0, 8).map(tx => ({
+        id: tx.id,
+        type: tx.type === 'BUY' ? 'buy()' : 'ragequit()',
+        user: `${tx.user.slice(0, 6)}...${tx.user.slice(-4)}`,
+        amount: `${tx.amount} ${nativeSymbol}`,
+        val: `${tx.txHash.slice(0, 6)}..${tx.txHash.slice(-4)}`,
+        time: tx.relativeTime,
+        isRagequit: tx.type === 'RAGEQUIT',
+        txHash: tx.txHash,
+    }));
+
+    // Fallback if no events
+    const displayEvents = events.length > 0 ? events : [
+        { id: 'placeholder', type: 'awaiting...', user: 'SYSTEM', amount: `0 ${nativeSymbol}`, val: '...', time: 'SYNCING', isRagequit: false }
+    ];
 
     useEffect(() => {
+        if (displayEvents.length <= 1) return;
+
         const timer = setInterval(() => {
-            setIndex((prev) => (prev + 1) % REAL_EVENTS.length);
+            setIndex((prev) => (prev + 1) % displayEvents.length);
         }, 4000);
         return () => clearInterval(timer);
-    }, []);
+    }, [displayEvents.length]);
 
-    const event = REAL_EVENTS[index];
+    const event = displayEvents[index] || displayEvents[0];
 
     return (
         <div className="h-24 border border-white/10 bg-white/2 flex items-center px-8 relative overflow-hidden">
@@ -36,35 +51,40 @@ export default function ActivityCarousel() {
                     className="flex flex-1 items-center justify-between"
                 >
                     <div className="flex items-center gap-6">
-                        <div className={`text-[10px] font-pixel px-2 py-1 ${event.isGovernance
-                            ? (event.isFailure ? 'bg-yellow-500 text-black' : 'bg-blue-500 text-white')
-                            : (event.isRagequit ? 'bg-red-500 text-white' : 'bg-white text-black')
+                        <div className={`text-[10px] font-pixel px-2 py-1 ${event.isRagequit ? 'bg-red-500 text-white' : 'bg-white text-black'
                             }`}>
                             {event.type}
                         </div>
                         <div className="flex flex-col">
                             <span className="text-[8px] font-pixel opacity-30 uppercase tracking-widest">
-                                {event.isGovernance ? 'GOVERNANCE_NODE' : 'USER_NODE'}
+                                {event.isRagequit ? 'EXIT_NODE' : 'USER_NODE'}
                             </span>
-                            <span className="font-mono text-sm">{event.user}</span>
+                            <a
+                                href={event.txHash ? `https://gnosisscan.io/tx/${event.txHash}` : '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-mono text-sm hover:underline"
+                            >
+                                {event.user}
+                            </a>
                         </div>
                     </div>
 
                     <div className="text-right flex flex-col items-end">
-                        <span className={`text-lg font-mono font-bold leading-none ${event.isGovernance
-                            ? (event.isFailure ? 'text-yellow-500' : 'text-blue-500')
-                            : 'text-white'
+                        <span className={`text-lg font-mono font-bold leading-none ${event.isRagequit ? 'text-red-400' : 'text-white'
                             }`}>
                             {event.amount}
                         </span>
-                        <span className="text-[8px] font-pixel opacity-20 uppercase mt-1">{event.time} // {event.isGovernance ? 'FUTARCHY_SIGNAL' : 'LIVE_FEED'}</span>
+                        <span className="text-[8px] font-pixel opacity-20 uppercase mt-1">
+                            {event.time} // LIVE_FEED
+                        </span>
                     </div>
                 </motion.div>
             </AnimatePresence>
 
             {/* Pagination Dotted Line */}
             <div className="absolute bottom-2 left-8 right-8 flex gap-1">
-                {REAL_EVENTS.map((_, i) => (
+                {displayEvents.map((_, i) => (
                     <div
                         key={i}
                         className={`h-[1px] flex-1 transition-all ${i === index ? 'bg-white' : 'bg-white/10'}`}

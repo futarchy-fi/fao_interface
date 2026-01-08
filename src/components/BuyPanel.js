@@ -5,6 +5,7 @@ import { parseEther, formatEther } from 'viem';
 import { useAccount, useReadContract, useWalletClient, usePublicClient } from 'wagmi';
 import { useFAOContract, FAO_SALE_ADDRESS } from '../hooks/useFAOContract';
 import { useNativeCurrency } from '../hooks/useNativeCurrency';
+import { useSubgraphData } from '../hooks/useSubgraphData';
 import { toast } from 'sonner';
 import TransactionConfirmModal from './TransactionConfirmModal';
 import FAOSaleABI from '../abi/FAOSale.json';
@@ -17,6 +18,7 @@ export default function BuyPanel() {
     const { address } = useAccount();
     const { data: walletClient } = useWalletClient();
     const publicClient = usePublicClient();
+    const { refetch: refetchSubgraph } = useSubgraphData();
 
     // Fetch current price from contract
     const { data: currentPriceWei } = useReadContract({
@@ -94,6 +96,9 @@ export default function BuyPanel() {
 
             toast.success("ASSET_SECURED", { id: toastId });
             setAmount('');
+
+            // Refetch subgraph data after successful transaction
+            setTimeout(() => refetchSubgraph(), 2000);
         } catch (err) {
             console.error(err);
             toast.error("TRANSACTION_FAILED: " + (err.shortMessage || err.message), { id: toastId });
@@ -145,7 +150,10 @@ export default function BuyPanel() {
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 sm:gap-0">
                     <label className="text-[10px] font-pixel uppercase tracking-[0.2em] text-white/40">PAY ({nativeSymbol})</label>
-                    <div className="text-[10px] font-mono text-green-500/80">ƒ%^ ${usdValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</div>
+                    <div className="text-[10px] font-mono">
+                        <span className="text-green-500/80">ƒ%^ ${usdValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>
+                        <span className="ml-2 text-blue-400">→ {estimatedTokens > 0 ? estimatedTokens.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '0'} FAO</span>
+                    </div>
                 </div>
                 <div className="relative group">
                     <input

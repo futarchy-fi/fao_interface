@@ -18,6 +18,10 @@ import ActivityCarousel from '../../components/ActivityCarousel';
 import FutarchyVisualizer from '../../components/FutarchyVisualizer';
 import { ConstructionLogo } from '../../components/ui/ConstructionLogo';
 import LiveTicker from '../../components/LiveTicker';
+import ProtocolStats from '../../components/ProtocolStats';
+import ContractCodeViewer from '../../components/ContractCodeViewer';
+import RagequitTestButton from '../../components/RagequitTestButton';
+import { useSubgraphData } from '../../hooks/useSubgraphData';
 
 const ScrollTypingHeader = ({ text, className = "" }) => {
     const ref = useRef(null);
@@ -43,13 +47,8 @@ export default function Dashboard() {
         { id: 'governance', label: '04 // PARTICIPATION' }
     ];
 
-    const realTransactions = [
-        { hash: '0xe3276be3ce857676e42ae1fdb393093f5b81b4258e9fe2cceb17e16a207a87e7', type: 'Admin Withdraw', val: '0 xDAI', time: '27 days ago' },
-        { hash: '0x111cbcbdf55e097293e3108d8c01b48b9e41dcbd9325c68006db9c8042977795', type: 'Buy', val: '0.001 xDAI', time: '27 days ago' },
-        { hash: '0x26c70362f03ec39f681e508237d76d17ace31e3ee3b91ef2e6ae6f4891b2e747', type: 'Ragequit', val: '0 xDAI', time: '27 days ago' },
-        { hash: '0x2a34ff478e0b2ff19b17290002e7d239f7300737e59cab9e06f1c5dc65c7dafa', type: 'Buy', val: '0.0001 xDAI', time: '27 days ago' },
-        { hash: '0x3820e08e9feb0494210ce55036eef033556dbcd200cd281a1c717c75a6e69c9e', type: 'Start Sale', val: '0 xDAI', time: '27 days ago' },
-    ];
+    // Fetch live transaction and sale data from subgraph
+    const { transactions: liveTransactions, sale } = useSubgraphData({ pollInterval: 30000 });
 
     useEffect(() => {
         const observer = new IntersectionObserver((entries) => {
@@ -168,6 +167,11 @@ export default function Dashboard() {
                         <div className="text-2xl sm:text-3xl xl:text-4xl font-mono leading-tight max-w-5xl text-white/90">
                             <TypewriterText text="FAO IS AN AUTONOMOUS GOVERNANCE PROTOCOL POWERED BY CONDITIONAL TOKEN MARKETS. WE SEPARATE STRATEGIC VALUES FROM ANALYTICAL BELIEFS TO OPTIMIZE CAPITAL ALLOCATION VIA THE GNOSIS CONDITIONAL TOKEN FRAMEWORK (CTF)." speed={0.01} />
                         </div>
+                    </div>
+
+                    {/* LIVE PROTOCOL STATS */}
+                    <div className="mt-8">
+                        <ProtocolStats />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 pt-10 md:pt-12 border-t border-white/10 mt-10 md:mt-12">
@@ -402,21 +406,28 @@ export default function Dashboard() {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-white/5">
-                                            {realTransactions.map((tx, i) => (
-                                                <tr key={i} className="hover:bg-white/5 transition-colors group">
+                                            {liveTransactions.slice(0, 10).map((tx, i) => (
+                                                <tr key={tx.id || i} className="hover:bg-white/5 transition-colors group">
                                                     <td className="p-4 md:p-6 uppercase">
-                                                        <span className={`px-2 py-1 font-pixel text-[9px] ${tx.type === 'Buy' ? 'bg-blue-600 text-white' :
-                                                            tx.type === 'Ragequit' ? 'bg-red-600 text-white' :
+                                                        <span className={`px-2 py-1 font-pixel text-[9px] ${tx.type === 'BUY' ? 'bg-blue-600 text-white' :
+                                                            tx.type === 'RAGEQUIT' ? 'bg-red-600 text-white' :
                                                                 'bg-white text-black'
                                                             }`}>
                                                             {tx.type}
                                                         </span>
                                                     </td>
                                                     <td className="p-4 md:p-6 font-mono opacity-60 group-hover:opacity-100 transition-opacity">
-                                                        {tx.hash.slice(0, 12)}...{tx.hash.slice(-12)}
+                                                        <a
+                                                            href={`https://gnosisscan.io/tx/${tx.txHash}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="hover:underline"
+                                                        >
+                                                            {tx.txHash.slice(0, 12)}...{tx.txHash.slice(-8)}
+                                                        </a>
                                                     </td>
-                                                    <td className="p-4 md:p-6 font-black">{tx.val}</td>
-                                                    <td className="p-4 md:p-6 opacity-40 whitespace-nowrap">{tx.time}</td>
+                                                    <td className="p-4 md:p-6 font-black">{tx.amount} xDAI</td>
+                                                    <td className="p-4 md:p-6 opacity-40 whitespace-nowrap">{tx.relativeTime}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -425,25 +436,94 @@ export default function Dashboard() {
                             </div>
                         </section>
 
+                        {/* SECTION: SMART CONTRACT SOURCE */}
+                        <section id="contracts" className="space-y-12 scroll-mt-20">
+                            <div className="space-y-4">
+                                <ScrollTypingHeader text="PROTOCOL_SOURCE_CODE" className="ico-header px-4 py-2 border border-white/10 inline-block" />
+                                <div className="flex gap-4 items-center">
+                                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                                    <span className="text-[8px] font-pixel opacity-40 uppercase tracking-[0.4em]">VERIFIED_MIT_LICENSE // OPEN_TRANSPARENCY</span>
+                                </div>
+                            </div>
+                            <ContractCodeViewer />
+                        </section>
+
                         {/* SECTION 04: PARTICIPATION */}
                         <section id="governance" className="scroll-mt-20 py-24 md:py-40 border-t border-white/10">
-                            <div className="max-w-4xl space-y-8 md:space-y-10">
-                                <h2 className="font-pixel text-3xl sm:text-4xl md:text-5xl tracking-tighter leading-tight break-words">
-                                    PARTICIPATE_IN_FUTARCHY
-                                </h2>
-                                <p className="text-lg md:text-xl font-mono text-white/50 leading-relaxed uppercase">
-                                    FUTARCHY ALIGNS CAPITAL WITH INFORMATION. CONTRIBUTE TO THE LIQUIDITY POOLS TO ESTABLISH ON-CHAIN BELIEFS THAT DRIVE PROTOCOL DECISIONS.
-                                </p>
-                                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                                    <button
-                                        className="terminal-button !py-4 sm:!py-6 !px-10 sm:!px-12 text-base sm:text-lg"
-                                        onClick={() => scrollTo('manifesto')}
+                            <div className="max-w-5xl space-y-12 md:space-y-16">
+                                <div className="space-y-6">
+                                    <h2 className="font-pixel text-3xl sm:text-4xl md:text-5xl tracking-tighter leading-tight break-words">
+                                        PARTICIPATE_IN_FUTARCHY
+                                    </h2>
+                                    <p className="text-lg md:text-xl font-mono text-white/50 leading-relaxed uppercase max-w-3xl">
+                                        JOIN THE COMMUNITY. CONTRIBUTE TO GOVERNANCE. SHAPE THE FUTURE OF DECENTRALIZED DECISION-MAKING.
+                                    </p>
+                                </div>
+
+                                {/* Big Social Links Grid */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                                    {/* Discord - Featured */}
+                                    <a
+                                        href="https://discord.gg/ATzpEDKq6Z"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="col-span-2 md:col-span-2 group p-8 md:p-12 border-2 border-[#5865F2]/30 bg-[#5865F2]/5 hover:bg-[#5865F2]/10 hover:border-[#5865F2]/60 transition-all flex flex-col items-center justify-center gap-4"
                                     >
-                                        [ ENTER_MARKET ]
-                                    </button>
-                                    <button className="terminal-button !py-4 sm:!py-6 !px-10 sm:!px-12 text-base sm:text-lg opacity-40 hover:opacity-100">
-                                        [ PROTOCOL_DOCUMENTATION ]
-                                    </button>
+                                        <svg className="w-16 h-16 md:w-24 md:h-24 text-[#5865F2] group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+                                        </svg>
+                                        <div className="text-center">
+                                            <div className="font-pixel text-lg md:text-xl text-[#5865F2] tracking-wider">DISCORD</div>
+                                            <div className="font-mono text-[10px] text-white/40 uppercase mt-1">JOIN_THE_COMMUNITY</div>
+                                        </div>
+                                    </a>
+
+                                    {/* X (Twitter) */}
+                                    <a
+                                        href="https://x.com/_futarchy"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="group p-6 md:p-8 border border-white/20 hover:border-white/40 hover:bg-white/5 transition-all flex flex-col items-center justify-center gap-3"
+                                    >
+                                        <svg className="w-10 h-10 md:w-12 md:h-12 text-white/60 group-hover:text-white group-hover:scale-110 transition-all" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                                        </svg>
+                                        <div className="text-center">
+                                            <div className="font-pixel text-sm text-white/80 tracking-wider">X / TWITTER</div>
+                                            <div className="font-mono text-[9px] text-white/30 uppercase mt-1">@_futarchy</div>
+                                        </div>
+                                    </a>
+
+                                    {/* GitHub */}
+                                    <a
+                                        href="https://github.com/futarchy-fi"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="group p-6 md:p-8 border border-white/20 hover:border-white/40 hover:bg-white/5 transition-all flex flex-col items-center justify-center gap-3"
+                                    >
+                                        <svg className="w-10 h-10 md:w-12 md:h-12 text-white/60 group-hover:text-white group-hover:scale-110 transition-all" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                                        </svg>
+                                        <div className="text-center">
+                                            <div className="font-pixel text-sm text-white/80 tracking-wider">GITHUB</div>
+                                            <div className="font-mono text-[9px] text-white/30 uppercase mt-1">SOURCE_CODE</div>
+                                        </div>
+                                    </a>
+                                </div>
+
+                                {/* Additional Links */}
+                                <div className="flex flex-wrap gap-4 pt-4 border-t border-white/10">
+                                    <a
+                                        href="https://app.futarchy.fi"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="terminal-button !py-4 !px-8 flex items-center gap-3"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3" />
+                                        </svg>
+                                        [ FUTARCHY_APP ]
+                                    </a>
                                 </div>
                             </div>
                         </section>
@@ -466,8 +546,8 @@ export default function Dashboard() {
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="p-4 border border-white/10 bg-black">
-                                            <span className="text-[7px] font-pixel opacity-20 block mb-1 uppercase">AVG_COST</span>
-                                            <span className="font-mono text-sm leading-none">-- {nativeSymbol}</span>
+                                            <span className="text-[7px] font-pixel opacity-20 block mb-1 uppercase">FAO_PRICE</span>
+                                            <span className="font-mono text-sm leading-none">{sale?.currentPrice || '0.0001'} {nativeSymbol}</span>
                                         </div>
                                         <div className="p-4 border border-white bg-white text-black">
                                             <span className="text-[7px] font-pixel opacity-60 block mb-1 uppercase">EXIT_VALUE (EST)</span>
@@ -513,21 +593,45 @@ export default function Dashboard() {
 
                 {/* Website Footer */}
                 < footer className="mt-24 md:mt-32 pt-12 md:pt-16 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8 pb-12" >
-                    <div className="flex items-center gap-10">
-                        <div className="flex flex-col">
-                            <span className="text-[6px] font-pixel opacity-20 uppercase tracking-widest mb-1">LIQUIDITY_GUARDIAN</span>
-                            <span className="text-[10px] font-mono opacity-60 underline underline-offset-4 uppercase tracking-widest">VIEW_TREASURY_CONTRACT</span>
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-[6px] font-pixel opacity-20 uppercase tracking-widest mb-1 uppercase tracking-widest">PROTOCOL_DOCS</span>
-                            <span className="text-[10px] font-mono opacity-60 underline underline-offset-4">GITBOOK_OFFLINE</span>
-                        </div>
+                    {/* Social Links */}
+                    <div className="flex items-center gap-6">
+                        {/* Discord */}
+                        <a href="https://discord.gg/ATzpEDKq6Z" target="_blank" rel="noopener noreferrer"
+                            className="opacity-40 hover:opacity-100 transition-opacity" title="Discord">
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+                            </svg>
+                        </a>
+                        {/* X (Twitter) */}
+                        <a href="https://x.com/_futarchy" target="_blank" rel="noopener noreferrer"
+                            className="opacity-40 hover:opacity-100 transition-opacity" title="X (Twitter)">
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                            </svg>
+                        </a>
+                        {/* Website */}
+                        <a href="https://app.futarchy.fi" target="_blank" rel="noopener noreferrer"
+                            className="opacity-40 hover:opacity-100 transition-opacity" title="Futarchy App">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+                            </svg>
+                        </a>
+                        {/* GitHub */}
+                        <a href="https://github.com/futarchy-fi" target="_blank" rel="noopener noreferrer"
+                            className="opacity-40 hover:opacity-100 transition-opacity" title="GitHub">
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                            </svg>
+                        </a>
                     </div>
                     <div className="font-pixel text-[8px] opacity-20 tracking-[0.5em] uppercase">
                         FAO_AUTONOMOUS_NETWORK // EST_2024
                     </div>
                 </footer >
             </div >
+
+            {/* DEBUG: Test Ragequit Button - Remove after testing */}
+            <RagequitTestButton />
         </div >
     );
 }
