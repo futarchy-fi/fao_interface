@@ -38,6 +38,14 @@ export default function Dashboard() {
     const [showCurveInfo, setShowCurveInfo] = useState(false);
     const [activeSection, setActiveSection] = useState('manifesto');
     const [isMobile, setIsMobile] = useState(false);
+    const [navIndex, setNavIndex] = useState(0);
+    const [navOffset, setNavOffset] = useState(0);
+    const [navAnimating, setNavAnimating] = useState(false);
+    const [navDragX, setNavDragX] = useState(0);
+    const navViewportRef = useRef(null);
+    const navDragXRef = useRef(0);
+    const navWidthRef = useRef(0);
+    const navPendingRef = useRef(0);
 
     const sections = [
         { id: 'manifesto', label: '01 // GOVERNANCE_ARCHITECTURE' },
@@ -84,6 +92,80 @@ export default function Dashboard() {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    // Mobile Navigation Effects
+    useEffect(() => {
+        const updateWidth = () => {
+            const width = navViewportRef.current?.getBoundingClientRect().width || 0;
+            navWidthRef.current = width;
+            setNavOffset(-width);
+            setNavDragX(0);
+        };
+        updateWidth();
+        window.addEventListener('resize', updateWidth);
+        return () => window.removeEventListener('resize', updateWidth);
+    }, []);
+
+    const navPrevIndex = (navIndex - 1 + sections.length) % sections.length;
+    const navNextIndex = (navIndex + 1) % sections.length;
+
+    const navGoNext = () => {
+        if (navAnimating || !navWidthRef.current) return;
+        navPendingRef.current = 1;
+        setNavAnimating(true);
+        setNavOffset(-2 * navWidthRef.current);
+    };
+
+    const navGoPrev = () => {
+        if (navAnimating || !navWidthRef.current) return;
+        navPendingRef.current = -1;
+        setNavAnimating(true);
+        setNavOffset(0);
+    };
+
+    const navSnapBack = () => {
+        if (navAnimating || !navWidthRef.current) return;
+        navPendingRef.current = 0;
+        setNavAnimating(true);
+        setNavOffset(-navWidthRef.current);
+    };
+
+    const navHandleTransitionEnd = () => {
+        if (!navAnimating) return;
+        if (navPendingRef.current === 1) {
+            setNavIndex((current) => (current + 1) % sections.length);
+        } else if (navPendingRef.current === -1) {
+            setNavIndex((current) => (current - 1 + sections.length) % sections.length);
+        }
+        navPendingRef.current = 0;
+        setNavAnimating(false);
+        setNavDragX(0);
+        setNavOffset(-navWidthRef.current);
+    };
+
+    const navTouchStart = (event) => {
+        navWidthRef.current = navViewportRef.current?.getBoundingClientRect().width || navWidthRef.current;
+        navDragXRef.current = event.touches[0].clientX;
+    };
+
+    const navTouchMove = (event) => {
+        if (navAnimating || !navWidthRef.current) return;
+        const delta = event.touches[0].clientX - navDragXRef.current;
+        setNavDragX(delta);
+        setNavOffset(-navWidthRef.current + delta);
+    };
+
+    const navTouchEnd = () => {
+        if (navAnimating || !navWidthRef.current) return;
+        const threshold = Math.max(40, navWidthRef.current * 0.18);
+        if (navDragX > threshold) {
+            navGoPrev();
+        } else if (navDragX < -threshold) {
+            navGoNext();
+        } else {
+            navSnapBack();
+        }
+    };
+
     // -- REAL DATA INTEGRATION --
     const { address } = useAccount();
     const { symbol: nativeSymbol } = useNativeCurrency();
@@ -126,40 +208,99 @@ export default function Dashboard() {
             <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-8 md:py-12 relative z-10 w-full">
                 {/* Website Header */}
                 <header className="flex flex-col gap-4 border-b border-white/10 pb-6 md:pb-12 mb-10 md:mb-16">
-                    <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 grayscale brightness-200 cursor-pointer flex-shrink-0" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-                            <ConstructionLogo />
-                        </div>
-                        <div className="flex flex-col min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                        <div className="flex items-center gap-3 sm:gap-4">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 grayscale brightness-200 cursor-pointer flex-shrink-0" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+                                <ConstructionLogo />
+                            </div>
                             <h1 className="font-pixel text-xl sm:text-2xl tracking-tighter leading-none whitespace-nowrap">FAO</h1>
-                            <span className="font-pixel text-[7px] sm:text-[8px] opacity-30 tracking-[0.35em] uppercase mt-1 whitespace-nowrap">FUTARCHY_AUTONOMOUS_ORGANIZATION</span>
                         </div>
-                        <div className="ml-auto flex items-center gap-3 sm:gap-4 flex-shrink-0">
+                        <span className="font-pixel text-[7px] sm:text-[8px] opacity-30 tracking-[0.35em] uppercase sm:ml-2 whitespace-nowrap">
+                            FUTARCHY_AUTONOMOUS_ORGANIZATION
+                        </span>
+                        <div className="w-full sm:w-auto sm:ml-auto flex items-center gap-3 sm:gap-4">
                             <div className="hidden lg:flex flex-col text-right mr-2">
                                 <span className="text-[7px] font-pixel opacity-20 uppercase tracking-widest mb-1">NETWORK_STABILITY</span>
                                 <span className="text-[10px] font-mono opacity-60">99.98% // SECURE</span>
                             </div>
-                            <div className="flex-shrink-0">
+                            <div className="w-full sm:w-auto">
                                 <ConnectWallet />
                             </div>
                         </div>
                     </div>
 
                     {/* GLOBAL NAVIGATION TABS - now on its own row */}
-                    <nav className="flex flex-wrap items-center gap-2 bg-white/5 p-1 rounded-sm border border-white/5 w-full">
-                        {sections.map((s) => (
-                            <button
-                                key={s.id}
-                                onClick={() => scrollTo(s.id)}
-                                className={`px-3 sm:px-4 py-2 font-pixel text-[8px] sm:text-[9px] transition-all whitespace-nowrap ${activeSection === s.id
-                                    ? 'bg-white text-black'
-                                    : 'text-white/40 hover:text-white hover:bg-white/5'
-                                    }`}
+                    <div className="relative w-full">
+                        <button
+                            type="button"
+                            onClick={navGoPrev}
+                            className="sm:hidden absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full border border-white/20 bg-black/80 text-white/80 flex items-center justify-center"
+                            aria-label="Scroll navigation left"
+                        >
+                            {'<'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={navGoNext}
+                            className="sm:hidden absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full border border-white/20 bg-black/80 text-white/80 flex items-center justify-center"
+                            aria-label="Scroll navigation right"
+                        >
+                            {'>'}
+                        </button>
+
+                        {/* Mobile carousel */}
+                        <div
+                            ref={navViewportRef}
+                            className="sm:hidden overflow-hidden bg-white/5 p-1 rounded-sm border border-white/5"
+                            onTouchStart={navTouchStart}
+                            onTouchMove={navTouchMove}
+                            onTouchEnd={navTouchEnd}
+                            onTouchCancel={navTouchEnd}
+                        >
+                            <div
+                                className="flex w-[300%]"
+                                onTransitionEnd={navHandleTransitionEnd}
+                                style={{
+                                    transform: `translateX(${navOffset}px)`,
+                                    transition: navAnimating ? 'transform 240ms ease' : 'none',
+                                }}
                             >
-                                {s.label.split(' // ')[1]}
-                            </button>
-                        ))}
-                    </nav>
+                                {[navPrevIndex, navIndex, navNextIndex].map((idx) => {
+                                    const section = sections[idx];
+                                    const label = section.label.split(' // ')[1];
+                                    const active = activeSection === section.id;
+                                    return (
+                                        <button
+                                            key={section.id}
+                                            onClick={() => scrollTo(section.id)}
+                                            className={`w-full flex-shrink-0 py-2 font-pixel text-[9px] transition-all whitespace-nowrap flex items-center justify-center text-center ${active
+                                                ? 'bg-white text-black'
+                                                : 'text-white/40 hover:text-white hover:bg-white/5'
+                                                }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Desktop tabs */}
+                        <nav className="hidden sm:flex flex-wrap items-center gap-2 bg-white/5 p-1 rounded-sm border border-white/5 w-full">
+                            {sections.map((s) => (
+                                <button
+                                    key={s.id}
+                                    onClick={() => scrollTo(s.id)}
+                                    className={`px-3 sm:px-4 py-2 font-pixel text-[8px] sm:text-[9px] transition-all whitespace-nowrap ${activeSection === s.id
+                                        ? 'bg-white text-black'
+                                        : 'text-white/40 hover:text-white hover:bg-white/5'
+                                        }`}
+                                >
+                                    {s.label.split(' // ')[1]}
+                                </button>
+                            ))}
+                        </nav>
+                    </div>
                 </header>
 
                 {/* FULL-WIDTH HERO SECTION (BREAKING OUT OF SIDEBARS) */}
@@ -307,7 +448,7 @@ export default function Dashboard() {
                             {/* Deep Trading Logic */}
                             <div className="p-8 md:p-12 border border-white/5 bg-white/[0.01] space-y-10 md:space-y-12">
                                 <div className="max-w-3xl space-y-6">
-                                    <h3 className="font-pixel text-2xl tracking-tighter uppercase leading-none">THE_GNOSIS_CONDITIONAL_FRAMEWORK</h3>
+                                    <h3 className="font-pixel text-2xl tracking-tighter uppercase leading-none">SECURED_BY_GNOSIS_CFT</h3>
                                     <p className="font-mono text-base md:text-lg text-white/50 leading-relaxed uppercase">
                                         SECURED BY THE INDUSTRY-STANDARD GNOSIS CONDITIONAL TOKEN FRAMEWORK (CTF) - THE SAME CRYPTOGRAPHIC ARCHITECTURE PROTECTING BILLIONS IN TVL.
                                     </p>

@@ -36,7 +36,7 @@ export function ConnectWallet() {
                         {(() => {
                             if (!connected) {
                                 return (
-                                    <button onClick={openConnectModal} className="terminal-button px-8">
+                                    <button onClick={openConnectModal} className="terminal-button px-8 w-full sm:w-auto">
                                         CONNECT_IDENTITY
                                     </button>
                                 );
