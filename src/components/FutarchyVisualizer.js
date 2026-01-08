@@ -6,47 +6,47 @@ import { useState, useEffect } from 'react';
 const REAL_PROPOSALS = [
     {
         id: 1,
-        title: "What is the impact on AAVE token price",
-        outcomeStr: "if AAVE token alignment proposal is approved",
+        title: "PROPOSAL_EXAMPLE #1",
+        outcomeStr: "Impact on token price if governance proposal passes",
         yesPrice: 161.01,
         noPrice: 143.96,
-        assetLabel: "GHO",
-        companyLogo: "https://nvhqdqtlsdboctqjcelq.supabase.co/storage/v1/object/public/market-images/company-logos/1766411438470_tlj5q.webp",
+        assetLabel: "USD",
+        companyLogo: null, // No logo - generic example
         networkTag: "Ethereum",
-        timeLeft: "Open until: 37d 1h 42m"
+        timeLeft: "37d 1h 42m"
     },
     {
         id: 2,
-        title: "What will be the price of GNO",
-        outcomeStr: "if its price is >= 130 sDAI",
+        title: "PROPOSAL_EXAMPLE #2",
+        outcomeStr: "Treasury allocation decision outcome simulation",
         yesPrice: 137.14,
         noPrice: 87.35,
-        assetLabel: "sDAI",
-        companyLogo: "https://s2.coinmarketcap.com/static/img/coins/200x200/36629.png",
+        assetLabel: "USD",
+        companyLogo: null,
         networkTag: "Gnosis",
-        timeLeft: "Open until: 2d 13h 41m"
+        timeLeft: "2d 13h 41m"
     },
     {
         id: 3,
-        title: "Will GnosisDAO adopt futarchy advisory markets",
-        outcomeStr: "for ≥ $5M treasury or strategic decisions",
+        title: "PROPOSAL_EXAMPLE #3",
+        outcomeStr: "Protocol upgrade impact assessment",
         yesPrice: 113.23,
         noPrice: 102.90,
-        assetLabel: "sDAI",
-        companyLogo: "https://raw.githubusercontent.com/Gnosis-DAO/brand-kit/main/Logos/GnosisDAO%20Logomark%20(Green).png",
+        assetLabel: "USD",
+        companyLogo: null,
         networkTag: "Gnosis",
-        timeLeft: "Open until: 4d 13h 42m"
+        timeLeft: "4d 13h 42m"
     },
     {
         id: 4,
-        title: "Impact on GNO price",
-        outcomeStr: "if Circle deploy native USDC on Gnosis Chain",
+        title: "PROPOSAL_EXAMPLE #4",
+        outcomeStr: "Strategic partnership evaluation",
         yesPrice: 136.47,
         noPrice: 84.06,
-        assetLabel: "sDAI",
-        companyLogo: "https://s2.coinmarketcap.com/static/img/coins/200x200/36629.png",
-        networkTag: "Gnosis",
-        timeLeft: "Open until: 5d 13h 42m"
+        assetLabel: "USD",
+        companyLogo: null,
+        networkTag: "Ethereum",
+        timeLeft: "5d 13h 42m"
     }
 ];
 

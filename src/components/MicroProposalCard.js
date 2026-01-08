@@ -23,12 +23,16 @@ export default function MicroProposalCard({ proposal, isActive = false, outcome 
             className={`flex items-center gap-4 px-6 py-4 rounded-full border transition-all duration-700 whitespace-nowrap overflow-hidden relative ${getStatusStyles()}`}
         >
             <div className={`w-10 h-10 rounded-full overflow-hidden border-2 border-white/40 bg-white/10 flex items-center justify-center flex-shrink-0 z-10 transition-all duration-500`}>
-                <img
-                    src={companyLogo}
-                    alt="Logo"
-                    className={`w-6 h-6 object-contain transition-all duration-500 ${isActive ? 'opacity-100' : 'opacity-40'} ${outcome ? 'brightness-200 contrast-125' : ''}`}
-                    onError={(e) => { e.target.src = "https://www.google.com/s2/favicons?domain=gnosis.io&sz=128" }}
-                />
+                {companyLogo ? (
+                    <img
+                        src={companyLogo}
+                        alt="Logo"
+                        className={`w-6 h-6 object-contain transition-all duration-500 ${isActive ? 'opacity-100' : 'opacity-40'} ${outcome ? 'brightness-200 contrast-125' : ''}`}
+                        onError={(e) => { e.target.src = "https://www.google.com/s2/favicons?domain=gnosis.io&sz=128" }}
+                    />
+                ) : (
+                    <span className={`font-pixel text-xs font-bold ${isActive ? 'opacity-100' : 'opacity-40'}`}>#</span>
+                )}
             </div>
 
             <div className="flex flex-col z-10">
