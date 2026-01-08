@@ -89,8 +89,8 @@ const cache = {
     pollInterval: null,
 };
 
-const CACHE_TTL = 30000; // 30 seconds cache validity
-const POLL_INTERVAL = 30000; // Poll every 30 seconds
+const CACHE_TTL = 10000; // 10 seconds cache validity
+const POLL_INTERVAL = 10000; // Poll every 10 seconds
 
 function notifySubscribers() {
     cache.subscribers.forEach(callback => callback());
