@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useETHPrice } from '../hooks/useETHPrice';
 
@@ -9,10 +9,28 @@ export default function StatusHUD() {
     const faoPriceEth = 0.0034; // Static protocol price for Phase 1
     const faoPriceUsd = price ? (faoPriceEth * price).toFixed(4) : '...';
     const [mounted, setMounted] = useState(false);
-    const scrollRef = useRef(null);
+    const [order, setOrder] = useState([0, 1, 2]);
+    const [width, setWidth] = useState(0);
+    const [offset, setOffset] = useState(0);
+    const [animating, setAnimating] = useState(false);
+    const [dragX, setDragX] = useState(0);
+    const pendingDirRef = useRef(0);
+    const dragStartRef = useRef(0);
+    const viewportRef = useRef(null);
 
     useEffect(() => {
         setMounted(true);
+    }, []);
+
+    useEffect(() => {
+        const update = () => {
+            const nextWidth = viewportRef.current?.getBoundingClientRect().width || 0;
+            setWidth(nextWidth);
+            setOffset(-nextWidth);
+        };
+        update();
+        window.addEventListener('resize', update);
+        return () => window.removeEventListener('resize', update);
     }, []);
 
     const stats = [
@@ -21,43 +39,70 @@ export default function StatusHUD() {
         { label: 'CURRENT_FAO_PRICE', value: `${faoPriceEth} ETH`, subValue: `ƒ%^ $${faoPriceUsd} USD` },
     ];
 
-    const loopCopies = 5;
-    const loopStats = useMemo(
-        () => Array.from({ length: loopCopies }, () => stats).flat(),
-        [stats]
-    );
+    const rotateNext = () => {
+        setOrder(([left, center, right]) => [center, right, left]);
+    };
 
-    useEffect(() => {
-        const el = scrollRef.current;
-        if (!el) return;
+    const rotatePrev = () => {
+        setOrder(([left, center, right]) => [right, left, center]);
+    };
 
-        const jumpToMiddle = () => {
-            const segment = el.scrollWidth / loopCopies;
-            el.scrollLeft = segment * Math.floor(loopCopies / 2);
-        };
+    const goNext = () => {
+        if (animating || !width) return;
+        pendingDirRef.current = 1;
+        setAnimating(true);
+        setOffset(-2 * width);
+    };
 
-        jumpToMiddle();
+    const goPrev = () => {
+        if (animating || !width) return;
+        pendingDirRef.current = -1;
+        setAnimating(true);
+        setOffset(0);
+    };
 
-        const handleScroll = () => {
-            const segment = el.scrollWidth / loopCopies;
-            const edgeOffset = segment * 0.5;
-            const maxLeft = el.scrollWidth - el.clientWidth;
-            if (el.scrollLeft <= edgeOffset) {
-                el.scrollLeft += segment * Math.floor(loopCopies / 2);
-            } else if (el.scrollLeft >= maxLeft - edgeOffset) {
-                el.scrollLeft -= segment * Math.floor(loopCopies / 2);
-            }
-        };
+    const snapBack = () => {
+        if (animating || !width) return;
+        pendingDirRef.current = 0;
+        setAnimating(true);
+        setOffset(-width);
+    };
 
-        el.addEventListener('scroll', handleScroll, { passive: true });
-        return () => el.removeEventListener('scroll', handleScroll);
-    }, [loopStats.length]);
+    const handleTransitionEnd = () => {
+        if (!animating) return;
+        if (pendingDirRef.current === 1) {
+            rotateNext();
+        } else if (pendingDirRef.current === -1) {
+            rotatePrev();
+        }
+        pendingDirRef.current = 0;
+        setAnimating(false);
+        setDragX(0);
+        setOffset(-width);
+    };
 
-    const scrollByCard = (direction) => {
-        const el = scrollRef.current;
-        if (!el) return;
-        const distance = el.clientWidth;
-        el.scrollBy({ left: direction * distance, behavior: 'smooth' });
+    const handleTouchStart = (event) => {
+        if (animating) return;
+        dragStartRef.current = event.touches[0].clientX;
+    };
+
+    const handleTouchMove = (event) => {
+        if (!width || animating) return;
+        const delta = event.touches[0].clientX - dragStartRef.current;
+        setDragX(delta);
+        setOffset(-width + delta);
+    };
+
+    const handleTouchEnd = () => {
+        if (!width || animating) return;
+        const threshold = Math.max(40, width * 0.18);
+        if (dragX > threshold) {
+            goPrev();
+        } else if (dragX < -threshold) {
+            goNext();
+        } else {
+            snapBack();
+        }
     };
 
     const hud = (
@@ -70,24 +115,24 @@ export default function StatusHUD() {
             }}
         >
             <div
-                className="relative w-full max-w-5xl mx-auto bg-black/90 backdrop-blur-xl border border-white/10 p-1 shadow-[0_0_50px_rgba(0,0,0,0.5)] rounded-sm pointer-events-auto sm:mx-auto sm:max-w-5xl sm:rounded-sm sm:px-0"
+                className="relative w-full max-w-5xl mx-auto bg-black/90 backdrop-blur-xl border border-white/10 p-1 shadow-[0_0_50px_rgba(0,0,0,0.5)] rounded-sm pointer-events-auto"
                 style={{ minHeight: 'var(--hud-height)' }}
             >
                 <button
                     type="button"
-                    onClick={() => scrollByCard(-1)}
+                    onClick={goPrev}
                     className="sm:hidden absolute left-4 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full border border-white/20 bg-black/80 text-white/80 flex items-center justify-center"
                     aria-label="Scroll HUD left"
                 >
-                    ‹
+                    {'<'}
                 </button>
                 <button
                     type="button"
-                    onClick={() => scrollByCard(1)}
+                    onClick={goNext}
                     className="sm:hidden absolute right-4 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full border border-white/20 bg-black/80 text-white/80 flex items-center justify-center"
                     aria-label="Scroll HUD right"
                 >
-                    ›
+                    {'>'}
                 </button>
 
                 <div className="flex items-center gap-3 flex-shrink-0 px-4 sm:px-6 pt-2 sm:pt-0 absolute right-0 top-0 bottom-0 sm:static sm:pt-0 sm:pb-0 sm:pr-0 sm:pl-0">
@@ -98,20 +143,54 @@ export default function StatusHUD() {
                     <span className="text-[8px] font-pixel opacity-30 uppercase tracking-tighter">LIVE_SYNC</span>
                 </div>
 
+                {/* Mobile carousel */}
                 <div
-                    ref={scrollRef}
-                    className="flex overflow-x-auto scrollbar-hide snap-x snap-mandatory pr-16 sm:pr-0 overscroll-x-contain"
+                    ref={viewportRef}
+                    className="sm:hidden overflow-hidden"
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    onTouchCancel={handleTouchEnd}
                 >
-                    {loopStats.map((stat, index) => (
+                    <div
+                        className="flex w-[300%]"
+                        onTransitionEnd={handleTransitionEnd}
+                        style={{
+                            transform: `translateX(${offset}px)`,
+                            transition: animating ? 'transform 240ms ease' : 'none',
+                        }}
+                    >
+                        {order.map((statIndex, position) => {
+                            const stat = stats[statIndex];
+                            return (
+                                <div
+                                    key={`${stat.label}-${position}`}
+                                    className="w-full flex-shrink-0 px-4 py-3 flex flex-col items-center border-r border-white/10 last:border-r-0"
+                                    style={{ minWidth: width ? `${width}px` : '100vw' }}
+                                >
+                                    <span
+                                        className={`text-[8px] font-pixel uppercase tracking-widest mb-1 text-center ${stat.label === 'CURRENT_FAO_PRICE' ? 'opacity-10' : 'opacity-20'}`}
+                                    >
+                                        {stat.label}
+                                    </span>
+                                    <div className="flex flex-col items-center">
+                                        <span className="font-mono text-sm font-bold text-white tracking-tight">{stat.value}</span>
+                                        <span className="text-[9px] font-mono text-white/40">{stat.subValue}</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Desktop row */}
+                <div className="hidden sm:flex sm:min-w-0 sm:flex-1">
+                    {stats.map((stat) => (
                         <div
-                            key={`${stat.label}-${index}`}
-                            className="min-w-[100vw] sm:min-w-[160px] sm:flex-1 px-4 sm:px-6 py-3 flex flex-col items-center border-r border-white/10 last:border-r-0 snap-start"
+                            key={stat.label}
+                            className="min-w-[160px] sm:flex-1 px-4 sm:px-6 py-3 flex flex-col items-center border-r border-white/10 last:border-r-0"
                         >
-                            <span
-                                className={`text-[8px] font-pixel uppercase tracking-widest mb-1 text-center ${stat.label === 'CURRENT_FAO_PRICE' ? 'opacity-10' : 'opacity-20'}`}
-                            >
-                                {stat.label}
-                            </span>
+                            <span className="text-[8px] font-pixel opacity-30 uppercase tracking-widest mb-1 text-center">{stat.label}</span>
                             <div className="flex flex-col items-center">
                                 <span className="font-mono text-sm sm:text-base font-bold text-white tracking-tight">{stat.value}</span>
                                 <span className="text-[9px] font-mono text-white/40">{stat.subValue}</span>
