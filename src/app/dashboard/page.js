@@ -331,7 +331,7 @@ export default function Dashboard() {
                             <h1 className="font-pixel text-xl sm:text-2xl tracking-tighter leading-none whitespace-nowrap">FAO</h1>
                         </div>
                         <span className="font-pixel text-[7px] sm:text-[8px] opacity-30 tracking-[0.35em] uppercase sm:ml-2 whitespace-nowrap">
-                            FUTARCHY_AUTONOMOUS_ORGANIZATION
+                            FUTARCHY_AUTONOMOUS_OPTIMIZER
                         </span>
                         <div className="w-full sm:w-auto sm:ml-auto flex items-center gap-3 sm:gap-4">
                             <div className="w-full sm:w-auto">
@@ -933,7 +933,7 @@ export default function Dashboard() {
                         </a >
                     </div >
                     <div className="font-pixel text-[8px] opacity-20 tracking-[0.5em] uppercase">
-                        FAO_AUTONOMOUS_NETWORK // EST_2024
+                        FAO_AUTONOMOUS_OPTIMIZER // EST_2026
                     </div>
                 </footer >
             </div >

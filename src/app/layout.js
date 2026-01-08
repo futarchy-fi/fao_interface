@@ -11,7 +11,7 @@ const mono = IBM_Plex_Mono({ weight: ["400", "700"], subsets: ["latin"], variabl
 const pixel = Press_Start_2P({ weight: ["400"], subsets: ["latin"], variable: "--font-pixel" });
 
 export const metadata = {
-  title: "FAO | Futarchy Autonomous Organization",
+  title: "FAO | Futarchy Autonomous Optimizer",
   description: "The future of governance. Award winning design.",
 };
 
