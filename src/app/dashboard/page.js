@@ -21,6 +21,7 @@ import LiveTicker from '../../components/LiveTicker';
 import ProtocolStats from '../../components/ProtocolStats';
 import ContractCodeViewer from '../../components/ContractCodeViewer';
 import { useSubgraphData } from '../../hooks/useSubgraphData';
+import { toast } from 'sonner';
 
 const ScrollTypingHeader = ({ text, className = "" }) => {
     const ref = useRef(null);
@@ -48,6 +49,7 @@ export default function Dashboard() {
     const navPendingRef = useRef(0);
     const [portfolioUpdatePending, setPortfolioUpdatePending] = useState(false);
     const previousBalanceRef = useRef(null);
+    const optimisticStartTimeRef = useRef(null);
 
     const sections = [
         { id: 'manifesto', label: '01 // GOVERNANCE_ARCHITECTURE' },
@@ -185,35 +187,82 @@ export default function Dashboard() {
     // Callback for child panels to trigger optimistic update
     // delta: positive for buy (tokens gained), negative for ragequit (tokens burned)
     const onTransactionSuccess = useCallback((deltaTokens) => {
-        // Store EXPECTED balance after transaction (oldBalance + delta)
-        const currentBalance = faoBalance ? Number(formatEther(faoBalance)) : 0;
-        const expectedBalance = Math.floor(currentBalance + (deltaTokens || 0));
-        previousBalanceRef.current = expectedBalance; // Store expected, not previous
-        setOptimisticDelta(deltaTokens || 0);
-        setPortfolioUpdatePending(true);
-    }, [faoBalance]);
+        const delta = deltaTokens || 0;
+
+        if (portfolioUpdatePending) {
+            // ALREADY SYNCING: Stack the new delta on top of existing optimistic delta
+            // Example: Was showing 15k, sold 10k (delta=-10k, showing 5k), now buy 20k
+            // New delta should be: -10k + 20k = +10k (so 15k + 10k = 25k displayed)
+            console.log("=== STACKING TRANSACTION ===", {
+                existingDelta: optimisticDelta,
+                newDelta: delta,
+                combined: optimisticDelta + delta
+            });
+
+            const newCombinedDelta = optimisticDelta + delta;
+            const rawBalance = faoBalance ? Number(formatEther(faoBalance)) : 0;
+            const newExpectedBalance = Math.floor(rawBalance + newCombinedDelta);
+
+            previousBalanceRef.current = newExpectedBalance;
+            setOptimisticDelta(newCombinedDelta);
+            // Reset the timer for the new stacked transaction
+            optimisticStartTimeRef.current = Date.now();
+        } else {
+            // FRESH TRANSACTION: Start optimistic update from current RPC balance
+            const currentBalance = faoBalance ? Number(formatEther(faoBalance)) : 0;
+            const expectedBalance = Math.floor(currentBalance + delta);
+
+            console.log("=== NEW OPTIMISTIC UPDATE ===", {
+                currentBalance,
+                delta,
+                expectedBalance
+            });
+
+            previousBalanceRef.current = expectedBalance;
+            setOptimisticDelta(delta);
+            setPortfolioUpdatePending(true);
+        }
+    }, [faoBalance, portfolioUpdatePending, optimisticDelta]);
 
     // Clear optimistic delta ONLY when RPC returns the expected value
     useEffect(() => {
         if (!portfolioUpdatePending || previousBalanceRef.current === null) return;
 
+        // Set start time on first run
+        if (!optimisticStartTimeRef.current) {
+            optimisticStartTimeRef.current = Date.now();
+        }
+
+        // Wait at least 2 seconds before checking (prevent race conditions)
+        const elapsed = Date.now() - optimisticStartTimeRef.current;
+        if (elapsed < 2000) {
+            const waitTimeout = setTimeout(() => { }, 100); // Force re-check
+            return () => clearTimeout(waitTimeout);
+        }
+
         // Check if RPC balance now matches our expected value
         const currentBalance = faoBalance ? Math.floor(Number(formatEther(faoBalance))) : 0;
         const expectedBalance = previousBalanceRef.current;
 
+        console.log("=== OPTIMISTIC CHECK ===", { currentBalance, expectedBalance, elapsed });
+
         if (currentBalance === expectedBalance) {
             // RPC caught up to expected value - clear optimistic delta
+            console.log("RPC SYNCED - clearing optimistic state");
             setOptimisticDelta(0);
             setPortfolioUpdatePending(false);
             previousBalanceRef.current = null;
+            optimisticStartTimeRef.current = null;
             return;
         }
 
         // Fallback timeout: clear after 60 seconds (but keep showing real RPC value)
         const timeout = setTimeout(() => {
+            console.log("FALLBACK TIMEOUT - clearing optimistic state");
             setOptimisticDelta(0);
             setPortfolioUpdatePending(false);
             previousBalanceRef.current = null;
+            optimisticStartTimeRef.current = null;
         }, 60000);
 
         return () => clearTimeout(timeout);
@@ -226,6 +275,31 @@ export default function Dashboard() {
         functionName: 'currentPriceWeiPerToken',
         watch: true,
     });
+
+    // Add FAO token to MetaMask
+    const addToMetaMask = async () => {
+        if (typeof window.ethereum === 'undefined') {
+            toast.error('MetaMask not detected');
+            return;
+        }
+        try {
+            await window.ethereum.request({
+                method: 'wallet_watchAsset',
+                params: {
+                    type: 'ERC20',
+                    options: {
+                        address: FAO_TOKEN_ADDRESS,
+                        symbol: 'FAO',
+                        decimals: 18,
+                        image: 'https://fao.futarchy.fi/fao-icon.png',
+                    },
+                },
+            });
+            toast.success('FAO token added to wallet!');
+        } catch (error) {
+            toast.error('Failed to add token');
+        }
+    };
 
     // Calculations - use optimistic delta for immediate feedback
     const rawHoldings = faoBalance ? Number(formatEther(faoBalance)) : 0;
@@ -363,7 +437,7 @@ export default function Dashboard() {
                             <div className="flex justify-between items-start">
                                 <div className="space-y-4">
                                     <h3 className="font-pixel text-sm flex items-center gap-3">
-                                        PHASE_1: COLLATERAL_ACCUMULATION
+                                        PHASE_0: COLLATERAL_ACCUMULATION
                                         <span className="bg-green-500 text-black px-2 py-0.5 text-[8px] animate-pulse">ACTIVE</span>
                                     </h3>
                                     <p className="text-white/50 font-mono text-sm leading-relaxed">
@@ -375,7 +449,7 @@ export default function Dashboard() {
                         </div>
                         <div className="phase-card space-y-6 p-5 md:p-8">
                             <div className="space-y-4">
-                                <h3 className="font-pixel text-sm text-white/40">PHASE_2: ALGORITHMIC_EXPANSION</h3>
+                                <h3 className="font-pixel text-sm text-white/40">PHASE_1: ALGORITHMIC_EXPANSION</h3>
                                 <p className="text-white/30 font-mono text-sm leading-relaxed">
                                     The mathematical expansion phase. Price increases proportionally with supply, following a predefined P = m * S + b slope.
                                 </p>
@@ -384,7 +458,7 @@ export default function Dashboard() {
                                         <div key={i} className="bg-white/10 flex-1" style={{ height: `${(i + 1) * 5}%` }} />
                                     ))}
                                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                        <span className="font-pixel text-[8px] opacity-20">LOCKED_UNTIL_PHASE_II</span>
+                                        <span className="font-pixel text-[8px] opacity-20">LOCKED_UNTIL_PHASE_I</span>
                                     </div>
                                 </div>
                                 <button
@@ -410,13 +484,6 @@ export default function Dashboard() {
                                     </motion.div>
                                 )}
                             </AnimatePresence>
-
-                            <div className="space-y-4 pt-4">
-                                <h3 className="font-pixel text-sm opacity-40">PHASE_3: LIQUIDITY_EXIT_MECHANISM</h3>
-                                <p className="text-white/30 font-mono text-sm leading-relaxed">
-                                    The ultimate principal protection. Exit the protocol at any time for your proportional share of the treasury.
-                                </p>
-                            </div>
                         </div>
                     </div>
                 </section>
@@ -751,7 +818,39 @@ export default function Dashboard() {
                                             <span className="text-[8px] font-pixel opacity-20 uppercase mb-1">HOLDINGS</span>
                                             <span className="text-4xl font-mono font-black">{formattedHoldings}</span>
                                         </div>
-                                        <span className="font-pixel text-[10px] opacity-40 mb-1 tracking-widest">FAO</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-pixel text-[10px] opacity-40 mb-1 tracking-widest">FAO</span>
+                                            <button
+                                                onClick={addToMetaMask}
+                                                className="group relative p-1.5 hover:bg-white/10 rounded transition-colors"
+                                                title="Add FAO to MetaMask"
+                                            >
+                                                {/* MetaMask Fox SVG */}
+                                                <svg width="16" height="16" viewBox="0 0 318.6 318.6" className="opacity-40 group-hover:opacity-100 transition-opacity">
+                                                    <polygon fill="#E2761B" points="274.1,35.5 174.6,109.4 193,65.8" />
+                                                    <polygon fill="#E4761B" points="44.4,35.5 143.1,110.1 125.6,65.8" />
+                                                    <polygon fill="#D7C1B3" points="238.3,206.8 211.8,247.4 268.5,263 284.8,207.7" />
+                                                    <polygon fill="#D7C1B3" points="33.9,207.7 50.1,263 106.8,247.4 80.3,206.8" />
+                                                    <polygon fill="#233447" points="103.6,138.2 87.8,162.1 143.8,164.6 141.7,104.3" />
+                                                    <polygon fill="#233447" points="214.9,138.2 175.9,103.4 174.6,164.6 230.8,162.1" />
+                                                    <polygon fill="#CD6116" points="106.8,247.4 140.6,230.9 111.4,208.1" />
+                                                    <polygon fill="#CD6116" points="177.9,230.9 211.8,247.4 207.1,208.1" />
+                                                    <polygon fill="#E4751F" points="211.8,247.4 177.9,230.9 180.6,253.3 180.3,262.3" />
+                                                    <polygon fill="#E4751F" points="106.8,247.4 138.3,262.3 138.1,253.3 140.6,230.9" />
+                                                    <polygon fill="#F6851B" points="138.8,193.5 110.6,185.2 130.5,176.1" />
+                                                    <polygon fill="#F6851B" points="179.7,193.5 188,176.1 208,185.2" />
+                                                    <polygon fill="#C0AD9E" points="106.8,247.4 111.6,206.8 80.3,207.7" />
+                                                    <polygon fill="#C0AD9E" points="207,206.8 211.8,247.4 238.3,207.7" />
+                                                    <polygon fill="#763D16" points="230.8,162.1 174.6,164.6 179.8,193.5 188.1,176.1 208.1,185.2" />
+                                                    <polygon fill="#763D16" points="110.6,185.2 130.6,176.1 138.8,193.5 143.8,164.6 87.8,162.1" />
+                                                    <polygon fill="#E2761B" points="87.8,162.1 111.4,208.1 110.6,185.2" />
+                                                    <polygon fill="#E2761B" points="208.1,185.2 207.1,208.1 230.8,162.1" />
+                                                    <polygon fill="#F6851B" points="143.8,164.6 138.8,193.5 145.1,227.6 146.6,182.4 143.8,164.6" />
+                                                    <polygon fill="#F6851B" points="174.6,164.6 171.9,182.3 173.1,227.6 179.8,193.5" />
+                                                </svg>
+                                                <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black border border-white/20 text-white text-[7px] font-pixel px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">ADD_TO_WALLET</span>
+                                            </button>
+                                        </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="p-4 border border-white/10 bg-black">

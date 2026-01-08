@@ -58,7 +58,7 @@ export default function StatusHUD() {
 
     const stats = [
         { label: 'PROTOCOL_TREASURY', value: `${tvl} ${nativeSymbol}`, subValue: `$${tvlUsd} USD` },
-        { label: 'CIRCULATING_SUPPLY', value: `${formatNumber(circulating)} FAO`, subValue: sale?.initialPhaseFinalized ? 'CURVE_PHASE' : 'PHASE_1_ACTIVE' },
+        { label: 'CIRCULATING_SUPPLY', value: `${formatNumber(circulating)} FAO`, subValue: sale?.initialPhaseFinalized ? 'CURVE_PHASE' : 'PHASE_0_ACTIVE' },
         { label: 'CURRENT_FAO_PRICE', value: `${currentPrice} ${nativeSymbol}`, subValue: `ƒ%^ $${priceUsd} USD` },
     ];
 

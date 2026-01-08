@@ -86,11 +86,16 @@ export function useApproveAndCall() {
 
             const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
 
-            if (receipt.status === 'success') {
+            console.log("=== TRANSACTION RECEIPT ===", receipt.status, typeof receipt.status);
+
+            // Handle both viem formats: 'success' string or 1n BigInt
+            const isSuccess = receipt.status === 'success' || receipt.status === 1n || receipt.status === 1;
+
+            if (isSuccess) {
                 toast.success(`${actionName} Successful!`, { id: toastId });
                 if (onSuccess) onSuccess(receipt);
             } else {
-                toast.error(`${actionName} Failed on-chain.`, { id: toastId });
+                toast.error(`${actionName} Failed on-chain. Status: ${receipt.status}`, { id: toastId });
             }
 
         } catch (error) {
