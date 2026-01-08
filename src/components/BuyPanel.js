@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import TransactionConfirmModal from './TransactionConfirmModal';
 import FAOSaleABI from '../abi/FAOSale.json';
 
-export default function BuyPanel() {
+export default function BuyPanel({ onTransactionSuccess }) {
     const [amount, setAmount] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const { price: nativePrice, symbol: nativeSymbol } = useNativeCurrency();
@@ -96,6 +96,9 @@ export default function BuyPanel() {
 
             toast.success("ASSET_SECURED", { id: toastId });
             setAmount('');
+
+            // Trigger optimistic portfolio update with tokens bought
+            if (onTransactionSuccess) onTransactionSuccess(Number(numTokensBigInt));
 
             // Refetch subgraph data after successful transaction
             setTimeout(() => refetchSubgraph(), 3000);

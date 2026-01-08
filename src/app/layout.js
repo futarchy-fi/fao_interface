@@ -25,7 +25,7 @@ export default function RootLayout({ children }) {
               <div className="app-scroll">
                 {children}
               </div>
-              <FloatingAIChat />
+              {/* <FloatingAIChat /> */}
               <StatusHUD />
               <Toaster position="bottom-right" />
             </div>

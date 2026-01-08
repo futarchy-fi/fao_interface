@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import TransactionConfirmModal from './TransactionConfirmModal';
 import FAOSaleABI from '../abi/FAOSale.json';
 
-export default function RagequitPanel() {
+export default function RagequitPanel({ onTransactionSuccess }) {
     const [amount, setAmount] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -108,6 +108,8 @@ export default function RagequitPanel() {
             },
             onSuccess: () => {
                 setAmount('');
+                // Trigger optimistic portfolio update with tokens burned (negative delta)
+                if (onTransactionSuccess) onTransactionSuccess(-Number(numTokensBigInt));
                 // Refetch subgraph data after successful transaction
                 setTimeout(() => refetchSubgraph(), 3000);
             }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { formatEther } from 'viem';
 import { useAccount, useReadContract } from 'wagmi';
@@ -46,6 +46,8 @@ export default function Dashboard() {
     const navDragXRef = useRef(0);
     const navWidthRef = useRef(0);
     const navPendingRef = useRef(0);
+    const [portfolioUpdatePending, setPortfolioUpdatePending] = useState(false);
+    const previousBalanceRef = useRef(null);
 
     const sections = [
         { id: 'manifesto', label: '01 // GOVERNANCE_ARCHITECTURE' },
@@ -169,15 +171,53 @@ export default function Dashboard() {
     // -- REAL DATA INTEGRATION --
     const { address } = useAccount();
     const { symbol: nativeSymbol } = useNativeCurrency();
+    const [optimisticDelta, setOptimisticDelta] = useState(0); // Tokens added/removed optimistically
 
     // Fetch FAO Balance
-    const { data: faoBalance } = useReadContract({
+    const { data: faoBalance, refetch: refetchBalance } = useReadContract({
         address: FAO_TOKEN_ADDRESS,
         abi: FAOTokenABI,
         functionName: 'balanceOf',
         args: [address],
-        query: { enabled: !!address, pollInterval: 5000 }
+        query: { enabled: !!address, pollInterval: portfolioUpdatePending ? 1000 : 5000 }
     });
+
+    // Callback for child panels to trigger optimistic update
+    // delta: positive for buy (tokens gained), negative for ragequit (tokens burned)
+    const onTransactionSuccess = useCallback((deltaTokens) => {
+        // Store EXPECTED balance after transaction (oldBalance + delta)
+        const currentBalance = faoBalance ? Number(formatEther(faoBalance)) : 0;
+        const expectedBalance = Math.floor(currentBalance + (deltaTokens || 0));
+        previousBalanceRef.current = expectedBalance; // Store expected, not previous
+        setOptimisticDelta(deltaTokens || 0);
+        setPortfolioUpdatePending(true);
+    }, [faoBalance]);
+
+    // Clear optimistic delta ONLY when RPC returns the expected value
+    useEffect(() => {
+        if (!portfolioUpdatePending || previousBalanceRef.current === null) return;
+
+        // Check if RPC balance now matches our expected value
+        const currentBalance = faoBalance ? Math.floor(Number(formatEther(faoBalance))) : 0;
+        const expectedBalance = previousBalanceRef.current;
+
+        if (currentBalance === expectedBalance) {
+            // RPC caught up to expected value - clear optimistic delta
+            setOptimisticDelta(0);
+            setPortfolioUpdatePending(false);
+            previousBalanceRef.current = null;
+            return;
+        }
+
+        // Fallback timeout: clear after 60 seconds (but keep showing real RPC value)
+        const timeout = setTimeout(() => {
+            setOptimisticDelta(0);
+            setPortfolioUpdatePending(false);
+            previousBalanceRef.current = null;
+        }, 60000);
+
+        return () => clearTimeout(timeout);
+    }, [faoBalance, portfolioUpdatePending]);
 
     // Fetch Current Price
     const { data: currentPriceWei } = useReadContract({
@@ -187,8 +227,9 @@ export default function Dashboard() {
         watch: true,
     });
 
-    // Calculations
-    const holdings = faoBalance ? Number(formatEther(faoBalance)) : 0;
+    // Calculations - use optimistic delta for immediate feedback
+    const rawHoldings = faoBalance ? Number(formatEther(faoBalance)) : 0;
+    const holdings = rawHoldings + optimisticDelta;
     const exitValueEth = (holdings * (currentPriceWei ? Number(formatEther(currentPriceWei)) : 0));
     // Use en-US locale for consistent formatting: 19,010 (comma for thousands, period for decimals)
     const formattedHoldings = Math.floor(holdings).toLocaleString('en-US');
@@ -687,6 +728,14 @@ export default function Dashboard() {
                                     </div>
                                 )}
 
+                                {/* Subtle indicator when optimistic update is pending */}
+                                {portfolioUpdatePending && address && (
+                                    <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 px-2 py-1 bg-black/60 rounded-sm">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                                        <span className="font-pixel text-[7px] text-green-500/80 tracking-wider">SYNCING...</span>
+                                    </div>
+                                )}
+
                                 <div className="flex justify-between items-center mb-8">
                                     <h3 className="font-pixel text-[10px] tracking-[0.3em] opacity-30 uppercase">/IDENTIFIED_PORTFOLIO</h3>
                                     <div className="flex items-center gap-2">
@@ -740,7 +789,7 @@ export default function Dashboard() {
                                     </button>
                                 </div>
                                 <div className="p-2">
-                                    {tradeMode === 'buy' ? <BuyPanel /> : <RagequitPanel />}
+                                    {tradeMode === 'buy' ? <BuyPanel onTransactionSuccess={onTransactionSuccess} /> : <RagequitPanel onTransactionSuccess={onTransactionSuccess} />}
                                 </div>
                             </div>
 

@@ -3,15 +3,16 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 
+// Intercalated proposals: alternating PASS and FAIL outcomes for variety
 const REAL_PROPOSALS = [
     {
         id: 1,
         title: "PROPOSAL_EXAMPLE #1",
         outcomeStr: "Impact on token price if governance proposal passes",
-        yesPrice: 161.01,
+        yesPrice: 161.01,  // PASS: yesPrice > noPrice
         noPrice: 143.96,
         assetLabel: "USD",
-        companyLogo: null, // No logo - generic example
+        companyLogo: null,
         networkTag: "Ethereum",
         timeLeft: "37d 1h 42m"
     },
@@ -19,8 +20,8 @@ const REAL_PROPOSALS = [
         id: 2,
         title: "PROPOSAL_EXAMPLE #2",
         outcomeStr: "Treasury allocation decision outcome simulation",
-        yesPrice: 137.14,
-        noPrice: 87.35,
+        yesPrice: 82.35,   // FAIL: noPrice > yesPrice
+        noPrice: 127.14,
         assetLabel: "USD",
         companyLogo: null,
         networkTag: "Gnosis",
@@ -30,7 +31,7 @@ const REAL_PROPOSALS = [
         id: 3,
         title: "PROPOSAL_EXAMPLE #3",
         outcomeStr: "Protocol upgrade impact assessment",
-        yesPrice: 113.23,
+        yesPrice: 113.23,  // PASS: yesPrice > noPrice
         noPrice: 102.90,
         assetLabel: "USD",
         companyLogo: null,
@@ -41,12 +42,34 @@ const REAL_PROPOSALS = [
         id: 4,
         title: "PROPOSAL_EXAMPLE #4",
         outcomeStr: "Strategic partnership evaluation",
-        yesPrice: 136.47,
-        noPrice: 84.06,
+        yesPrice: 79.06,   // FAIL: noPrice > yesPrice
+        noPrice: 136.47,
         assetLabel: "USD",
         companyLogo: null,
         networkTag: "Ethereum",
         timeLeft: "5d 13h 42m"
+    },
+    {
+        id: 5,
+        title: "PROPOSAL_EXAMPLE #5",
+        outcomeStr: "Liquidity pool rebalancing proposal",
+        yesPrice: 124.80,  // PASS: yesPrice > noPrice
+        noPrice: 98.45,
+        assetLabel: "USD",
+        companyLogo: null,
+        networkTag: "Gnosis",
+        timeLeft: "12d 8h 15m"
+    },
+    {
+        id: 6,
+        title: "PROPOSAL_EXAMPLE #6",
+        outcomeStr: "Token burn mechanism activation",
+        yesPrice: 91.20,   // FAIL: noPrice > yesPrice
+        noPrice: 118.35,
+        assetLabel: "USD",
+        companyLogo: null,
+        networkTag: "Ethereum",
+        timeLeft: "8d 22h 03m"
     }
 ];
 
