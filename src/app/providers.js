@@ -26,9 +26,10 @@ const config = getDefaultConfig({
     appName: 'FAO Interface',
     projectId: 'YOUR_PROJECT_ID', // TODO: Get a project ID from WalletConnect
     chains: [
+        gnosis,
         mainnet,
         ...(process.env.NEXT_PUBLIC_ENABLE_TESTNETS === 'true' ? [sepolia] : []),
-        gnosis,
+
     ],
     wallets: [
         ...wallets,
