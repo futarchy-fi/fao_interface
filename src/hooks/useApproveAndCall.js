@@ -46,10 +46,12 @@ export function useApproveAndCall() {
                 args: [address, spenderAddress]
             });
 
-            if (allowance < amountWei) {
+            const needsApproval = allowance < amountWei;
+
+            if (needsApproval) {
                 // 2. Need Approval
                 toast.message(`Step 1/2: Approve Tokens`, {
-                    description: `Please parse the approval request in your wallet. We strictly request ${formatUnits(amountWei, 18)} tokens.`,
+                    description: `Please approve the request in your wallet. Amount: ${formatUnits(amountWei, 18)} tokens.`,
                     id: toastId,
                 });
 
@@ -66,10 +68,14 @@ export function useApproveAndCall() {
                 toast.success("Approval Confirmed!", { id: toastId, duration: 2000 });
                 // Small delay to ensure node sync
                 await new Promise(r => setTimeout(r, 1000));
+            } else {
+                // Already approved - skip approval step
+                toast.success(`Already approved. Proceeding to ${actionName}...`, { id: toastId, duration: 1500 });
+                await new Promise(r => setTimeout(r, 500));
             }
 
             // 3. Execute Action
-            toast.loading(`Step 2/2: Confirm ${actionName}`, {
+            toast.loading(`${needsApproval ? 'Step 2/2' : 'Executing'}: Confirm ${actionName}`, {
                 id: toastId,
                 description: "Please sign the final transaction."
             });

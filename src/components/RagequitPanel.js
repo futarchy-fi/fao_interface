@@ -142,6 +142,13 @@ export default function RagequitPanel() {
                 </div>
             )}
 
+            {!address && (
+                <div className="absolute inset-0 z-30 flex items-center justify-center border flex-col text-center p-6 backdrop-blur-sm bg-black/90 border-white/20">
+                    <span className="font-pixel font-bold text-xs mb-2 tracking-widest">WALLET_NOT_CONNECTED</span>
+                    <p className="text-[9px] font-pixel text-white/40 mb-4">Connect wallet to execute transactions</p>
+                </div>
+            )}
+
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 sm:gap-0">
                     <label className="text-[10px] font-pixel uppercase tracking-[0.2em] text-white/40">BURN (FAO)</label>

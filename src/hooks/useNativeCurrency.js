@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useChainId } from 'wagmi';
+import { useChainId, useAccount } from 'wagmi';
 
 /**
  * Hook to get the native currency symbol and price based on the connected chain.
@@ -10,12 +10,15 @@ import { useChainId } from 'wagmi';
  * - price: Fixed $1.00 for xDAI, fetched price for ETH.
  * - isLoading: Loading state for price fetch.
  * 
- * Defaults to Gnosis Chain (100) when no wallet is connected.
+ * Defaults to Gnosis Chain (100) / xDAI when no wallet is connected.
  */
 export function useNativeCurrency() {
     const connectedChainId = useChainId();
+    const { isConnected } = useAccount();
+
     // Default to Gnosis Chain (100) when not connected
-    const chainId = connectedChainId || 100;
+    // useChainId returns default chain from config, so we check isConnected explicitly
+    const chainId = isConnected ? connectedChainId : 100;
     const [price, setPrice] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
 
