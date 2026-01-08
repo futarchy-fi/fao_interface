@@ -459,7 +459,7 @@ export default function Dashboard() {
                             <div className="max-w-5xl space-y-12 md:space-y-16">
                                 <div className="space-y-6">
                                     <h2 className="font-pixel text-3xl sm:text-4xl md:text-5xl tracking-tighter leading-tight break-words">
-                                        PARTICIPATE_IN_FUTARCHY
+                                        JOIN_FUTARCHY
                                     </h2>
                                     <p className="text-lg md:text-xl font-mono text-white/50 leading-relaxed uppercase max-w-3xl">
                                         JOIN THE COMMUNITY. CONTRIBUTE TO GOVERNANCE. SHAPE THE FUTURE OF DECENTRALIZED DECISION-MAKING.
