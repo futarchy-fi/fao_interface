@@ -20,7 +20,6 @@ import { ConstructionLogo } from '../../components/ui/ConstructionLogo';
 import LiveTicker from '../../components/LiveTicker';
 import ProtocolStats from '../../components/ProtocolStats';
 import ContractCodeViewer from '../../components/ContractCodeViewer';
-import RagequitTestButton from '../../components/RagequitTestButton';
 import { useSubgraphData } from '../../hooks/useSubgraphData';
 
 const ScrollTypingHeader = ({ text, className = "" }) => {
@@ -47,8 +46,14 @@ export default function Dashboard() {
         { id: 'governance', label: '04 // PARTICIPATION' }
     ];
 
-    // Fetch live transaction and sale data from subgraph
-    const { transactions: liveTransactions, sale } = useSubgraphData({ pollInterval: 30000 });
+    // Fetch live transaction and sale data from subgraph (30s auto-refresh)
+    const {
+        transactions: liveTransactions,
+        sale,
+        lastSyncedAtUTC,
+        refetch: refetchSubgraph,
+        isLoading: isSyncing
+    } = useSubgraphData({ pollInterval: 30000 });
 
     useEffect(() => {
         const observer = new IntersectionObserver((entries) => {
@@ -103,7 +108,8 @@ export default function Dashboard() {
     // Calculations
     const holdings = faoBalance ? Number(formatEther(faoBalance)) : 0;
     const exitValueEth = (holdings * (currentPriceWei ? Number(formatEther(currentPriceWei)) : 0));
-    const formattedHoldings = holdings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    // Use en-US locale for consistent formatting: 19,010 (comma for thousands, period for decimals)
+    const formattedHoldings = Math.floor(holdings).toLocaleString('en-US');
     const formattedExitValue = exitValueEth > 0 ? exitValueEth.toFixed(4) : "0.0000";
 
 
@@ -535,7 +541,15 @@ export default function Dashboard() {
                             {/* Personal Portfolio Card */}
                             <div className="p-8 border border-white/20 bg-white/5 relative overflow-hidden group">
                                 <div className="absolute top-0 right-0 p-4 opacity-10 font-pixel text-[40px] pointer-events-none group-hover:opacity-20 transition-opacity uppercase">FAO</div>
-                                <h3 className="font-pixel text-[10px] tracking-[0.3em] opacity-30 uppercase mb-8">/IDENTIFIED_PORTFOLIO</h3>
+                                <div className="flex justify-between items-center mb-8">
+                                    <h3 className="font-pixel text-[10px] tracking-[0.3em] opacity-30 uppercase">/IDENTIFIED_PORTFOLIO</h3>
+                                    <div className="flex items-center gap-2">
+                                        {isSyncing && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />}
+                                        <span className="font-mono text-[8px] opacity-30">
+                                            {lastSyncedAtUTC ? `SYNCED: ${lastSyncedAtUTC}` : 'SYNCING...'}
+                                        </span>
+                                    </div>
+                                </div>
                                 <div className="space-y-8">
                                     <div className="flex justify-between items-end">
                                         <div className="flex flex-col">
@@ -629,9 +643,6 @@ export default function Dashboard() {
                     </div>
                 </footer >
             </div >
-
-            {/* DEBUG: Test Ragequit Button - Remove after testing */}
-            <RagequitTestButton />
         </div >
     );
 }

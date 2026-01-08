@@ -109,7 +109,7 @@ export default function RagequitPanel() {
             onSuccess: () => {
                 setAmount('');
                 // Refetch subgraph data after successful transaction
-                setTimeout(() => refetchSubgraph(), 2000);
+                setTimeout(() => refetchSubgraph(), 3000);
             }
         });
     };

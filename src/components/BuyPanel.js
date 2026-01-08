@@ -98,7 +98,7 @@ export default function BuyPanel() {
             setAmount('');
 
             // Refetch subgraph data after successful transaction
-            setTimeout(() => refetchSubgraph(), 2000);
+            setTimeout(() => refetchSubgraph(), 3000);
         } catch (err) {
             console.error(err);
             toast.error("TRANSACTION_FAILED: " + (err.shortMessage || err.message), { id: toastId });
