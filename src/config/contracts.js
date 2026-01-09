@@ -1,7 +1,7 @@
 export const CONTRACTS = {
     // Gnosis Chain (100)
-    FAO_TOKEN: "0x19c85acb4ca0ff6fed5f8d7b376bfbb37a2d67e9",
-    FAO_SALE: "0x3f3ab07ad792bb89dff7528d1cef78372b0d8b93",
+    FAO_TOKEN: "0x9494C281a02c9ae5f72b224B514793ad2DD8cA17",
+    FAO_SALE: "0x38FF65E8839B581b5ad12383d93206AFcF38D4b2",
 };
 
 export const CHAIN_ID = 100; // Gnosis Chain ID
