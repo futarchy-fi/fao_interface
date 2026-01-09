@@ -1,4 +1,5 @@
-import { IBM_Plex_Mono, Press_Start_2P } from "next/font/google";
+'use client';
+
 import "./globals.css";
 import "@rainbow-me/rainbowkit/styles.css";
 import { Providers } from "./providers";
@@ -7,18 +8,17 @@ import { ThemeProvider } from "../context/ThemeContext";
 import { FloatingAIChat } from "../components/ui/FloatingAIChat";
 import StatusHUD from "../components/StatusHUD";
 
-const mono = IBM_Plex_Mono({ weight: ["400", "700"], subsets: ["latin"], variable: "--font-mono" });
-const pixel = Press_Start_2P({ weight: ["400"], subsets: ["latin"], variable: "--font-pixel" });
-
-export const metadata = {
-  title: "FAO | Futarchy Autonomous Optimizer",
-  description: "The future of governance. Award winning design.",
-};
-
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${mono.variable} ${pixel.variable} font-mono antialiased`}>
+      <head>
+        <title>FAO | Futarchy Autonomous Optimizer</title>
+        <meta name="description" content="The future of governance. Award winning design." />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet" />
+      </head>
+      <body className="font-mono antialiased">
         <ThemeProvider>
           <Providers>
             <div className="app-shell">
@@ -35,3 +35,4 @@ export default function RootLayout({ children }) {
     </html>
   );
 }
+
