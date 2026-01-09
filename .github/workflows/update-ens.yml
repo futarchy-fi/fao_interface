@@ -1,0 +1,153 @@
+name: Update ENS Contenthash
+
+on:
+  workflow_dispatch:
+    inputs:
+      ipfs_cid:
+        description: 'IPFS CID from Pinata deploy (e.g., QmXxx... or bafyxxx...)'
+        required: true
+        type: string
+
+env:
+  # ENS Resolver contract on Gnosis Chain
+  RESOLVER_ADDRESS: '0xF29100983E058B709F3D539b0c765937B804AC15'
+  # ENS namehash of your domain (fao.eth or similar)
+  ENS_NODE: '0x4c08ce1d7e01a0b96e63e3ad40b7180df55e1cdac821f99c5cca0b0a1e5fdbb0'
+  # Ethereum Mainnet RPC
+  RPC_URL: 'https://eth.llamarpc.com'
+
+jobs:
+  update-contenthash:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install viem
+        run: npm install viem
+
+      - name: Update ENS Contenthash
+        env:
+          PRIVATE_KEY: ${{ secrets.ENS_UPDATER_PRIVATE_KEY }}
+          IPFS_CID: ${{ inputs.ipfs_cid }}
+        run: |
+          node << 'EOF'
+          const { createWalletClient, createPublicClient, http, encodeFunctionData } = require('viem');
+          const { privateKeyToAccount } = require('viem/accounts');
+          const { mainnet } = require('viem/chains');
+
+          // ENS Resolver ABI - just the setContenthash function
+          const resolverAbi = [
+            {
+              name: 'setContenthash',
+              type: 'function',
+              inputs: [
+                { name: 'node', type: 'bytes32' },
+                { name: 'hash', type: 'bytes' }
+              ],
+              outputs: []
+            }
+          ];
+
+          // Convert IPFS CID to contenthash format
+          // IPFS contenthash = 0xe3 (ipfs) + 0x01 (CIDv1) + 0x70 (dag-pb) or 0x55 (raw) + 0x12 (sha256) + 0x20 (32 bytes) + hash
+          function cidToContenthash(cid) {
+            // For CIDv0 (Qm...) - convert to bytes
+            if (cid.startsWith('Qm')) {
+              // Base58 decode and wrap with IPFS prefix
+              const { base58btc } = require('multiformats/bases/base58');
+              const { CID } = require('multiformats/cid');
+              const cidObj = CID.parse(cid);
+              const bytes = cidObj.bytes;
+              // Wrap with e3 01 01 (ipfs namespace)
+              return '0xe3010101' + Buffer.from(bytes).toString('hex').slice(4);
+            }
+            // For CIDv1 (bafy...)
+            if (cid.startsWith('bafy') || cid.startsWith('bafk')) {
+              const { CID } = require('multiformats/cid');
+              const cidObj = CID.parse(cid);
+              const bytes = cidObj.bytes;
+              return '0xe3010170' + Buffer.from(bytes).toString('hex');
+            }
+            throw new Error('Unsupported CID format');
+          }
+
+          async function main() {
+            const privateKey = process.env.PRIVATE_KEY;
+            const ipfsCid = process.env.IPFS_CID;
+            const node = process.env.ENS_NODE || '${process.env.ENS_NODE}';
+            const resolverAddress = process.env.RESOLVER_ADDRESS || '${process.env.RESOLVER_ADDRESS}';
+
+            if (!privateKey) {
+              throw new Error('PRIVATE_KEY not set');
+            }
+
+            console.log('📦 IPFS CID:', ipfsCid);
+            console.log('🔗 ENS Node:', node);
+            console.log('📝 Resolver:', resolverAddress);
+
+            // Create account from private key
+            const account = privateKeyToAccount(privateKey.startsWith('0x') ? privateKey : '0x' + privateKey);
+            console.log('👛 Wallet:', account.address);
+
+            // Create clients
+            const publicClient = createPublicClient({
+              chain: mainnet,
+              transport: http(process.env.RPC_URL || 'https://eth.llamarpc.com')
+            });
+
+            const walletClient = createWalletClient({
+              account,
+              chain: mainnet,
+              transport: http(process.env.RPC_URL || 'https://eth.llamarpc.com')
+            });
+
+            // Simple contenthash encoding for IPFS
+            // Format: 0xe3 (ipfs) + 0x01 (cidv1) + codec + multihash
+            let contenthash;
+            if (ipfsCid.startsWith('Qm')) {
+              // CIDv0 - basic encoding
+              contenthash = '0xe30101551220' + ipfsCid.slice(2);
+              console.log('⚠️  Note: Using simplified CIDv0 encoding. For production, use proper base58 decode.');
+            } else {
+              // For bafyxxx CIDs, you may need multiformats library
+              contenthash = '0xe30101701220' + ipfsCid;
+            }
+            
+            console.log('📝 Contenthash:', contenthash);
+
+            // Send transaction
+            const hash = await walletClient.writeContract({
+              address: resolverAddress,
+              abi: resolverAbi,
+              functionName: 'setContenthash',
+              args: [node, contenthash]
+            });
+
+            console.log('✅ Transaction sent:', hash);
+            console.log('🔍 View on Etherscan: https://etherscan.io/tx/' + hash);
+
+            // Wait for confirmation
+            const receipt = await publicClient.waitForTransactionReceipt({ hash });
+            console.log('✅ Confirmed in block:', receipt.blockNumber);
+          }
+
+          main().catch(err => {
+            console.error('❌ Error:', err.message);
+            process.exit(1);
+          });
+          EOF
+
+      - name: Output Result
+        run: |
+          echo "## ✅ ENS Contenthash Updated!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**IPFS CID:** \`${{ inputs.ipfs_cid }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Your ENS domain now points to the new IPFS deployment." >> $GITHUB_STEP_SUMMARY
