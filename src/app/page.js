@@ -318,11 +318,17 @@ export default function Dashboard() {
     };
 
     // Calculations - use optimistic delta for immediate feedback
+    // Calculations - separated for clear UI feedback (Real vs Projected)
     const rawHoldings = faoBalance ? Number(formatEther(faoBalance)) : 0;
-    const holdings = rawHoldings + optimisticDelta;
-    const exitValueEth = (holdings * (currentPriceWei ? Number(formatEther(currentPriceWei)) : 0));
-    // Use en-US locale for consistent formatting: 19,010 (comma for thousands, period for decimals)
-    const formattedHoldings = Math.floor(holdings).toLocaleString('en-US');
+    const projectedHoldings = rawHoldings + optimisticDelta;
+
+    // Exit Value based on CONFIRMED holdings (Real RPC)
+    const exitValueEth = (rawHoldings * (currentPriceWei ? Number(formatEther(currentPriceWei)) : 0));
+
+    // Use en-US locale for consistent formatting
+    const formattedRpcHoldings = Math.floor(rawHoldings).toLocaleString('en-US');
+    const formattedProjected = Math.floor(projectedHoldings).toLocaleString('en-US');
+    const formattedDelta = (optimisticDelta > 0 ? '+' : '') + Math.floor(optimisticDelta).toLocaleString('en-US');
     const formattedExitValue = exitValueEth > 0 ? exitValueEth.toFixed(4) : "0.0000";
 
 
@@ -911,8 +917,20 @@ export default function Dashboard() {
                                 <div className="space-y-8">
                                     <div className="flex justify-between items-end">
                                         <div className="flex flex-col">
-                                            <span className="text-[8px] font-pixel opacity-20 uppercase mb-1">HOLDINGS</span>
-                                            <span className="text-4xl font-mono font-black">{formattedHoldings}</span>
+                                            <span className="text-[8px] font-pixel opacity-20 uppercase mb-1">HOLDINGS (CONFIRMED)</span>
+                                            <span className="text-4xl font-mono font-black">{formattedRpcHoldings}</span>
+
+                                            {/* Explicit Optimistic Feedback */}
+                                            {portfolioUpdatePending && optimisticDelta !== 0 && (
+                                                <div className="flex items-center gap-2 mt-1 animate-pulse">
+                                                    <span className="text-[10px] font-mono text-green-400 bg-green-500/10 px-1 rounded">
+                                                        {formattedDelta} SYNCING...
+                                                    </span>
+                                                    <span className="text-[8px] font-pixel text-white/30">
+                                                        (PROJECTED: {formattedProjected})
+                                                    </span>
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <span className="font-pixel text-[10px] opacity-40 mb-1 tracking-widest">FAO</span>
