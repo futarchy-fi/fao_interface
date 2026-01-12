@@ -28,12 +28,22 @@ export default function TransactionConfirmModal({ isOpen, onClose, onConfirm, da
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-6 p-4 bg-white/5 border border-white/10">
                             <div className="flex flex-col">
                                 <span className="text-[8px] font-pixel opacity-30 mb-1">INPUT (EXPENDITURE)</span>
-                                <span className="text-xl sm:text-2xl font-mono font-bold text-red-400">-{amount} {inputSymbol}</span>
+                                <span className="text-xl sm:text-2xl font-mono font-bold text-red-400">
+                                    ~{parseFloat(amount).toFixed(2)} {inputSymbol}
+                                </span>
+                                <span className="text-[10px] font-mono opacity-50 text-red-400/70">
+                                    -{parseFloat(amount).toFixed(6)} {inputSymbol}
+                                </span>
                             </div>
                             <div className="hidden sm:block w-8 h-px bg-white/20" />
                             <div className="flex flex-col text-left sm:text-right">
                                 <span className="text-[8px] font-pixel opacity-30 mb-1">OUTPUT (ACQUISITION)</span>
-                                <span className="text-xl sm:text-2xl font-mono font-bold text-green-400">+{receiveAmount} {outputSymbol}</span>
+                                <span className="text-xl sm:text-2xl font-mono font-bold text-green-400">
+                                    ~{parseFloat(receiveAmount).toFixed(2)} {outputSymbol}
+                                </span>
+                                <span className="text-[10px] font-mono opacity-50 text-green-400/70">
+                                    +{parseFloat(receiveAmount).toFixed(6)} {outputSymbol}
+                                </span>
                             </div>
                         </div>
 

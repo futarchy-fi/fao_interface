@@ -21,6 +21,7 @@ import LiveTicker from '../components/LiveTicker';
 import ProtocolStats from '../components/ProtocolStats';
 import ContractCodeViewer from '../components/ContractCodeViewer';
 import { useSubgraphData } from '../hooks/useSubgraphData';
+import { useFAOQuoter } from '../hooks/useFAOQuoter';
 import { toast } from 'sonner';
 
 const ScrollTypingHeader = ({ text, className = "" }) => {
@@ -173,6 +174,21 @@ export default function Dashboard() {
     // -- REAL DATA INTEGRATION --
     const { address } = useAccount();
     const { symbol: nativeSymbol } = useNativeCurrency();
+    const quoterData = useFAOQuoter();
+    const [isPhase0TimeExpired, setIsPhase0TimeExpired] = useState(false);
+
+    useEffect(() => {
+        if (quoterData.contractData?.initialPhaseEnd) {
+            const check = () => {
+                const now = Date.now() / 1000;
+                setIsPhase0TimeExpired(now > Number(quoterData.contractData.initialPhaseEnd));
+            };
+            check();
+            const timer = setInterval(check, 1000);
+            return () => clearInterval(timer);
+        }
+    }, [quoterData.contractData?.initialPhaseEnd]);
+
     const [optimisticDelta, setOptimisticDelta] = useState(0); // Tokens added/removed optimistically
 
     // Fetch FAO Balance
@@ -436,12 +452,23 @@ export default function Dashboard() {
                         <div className="phase-card space-y-6 p-5 md:p-8">
                             <div className="flex justify-between items-start">
                                 <div className="space-y-4">
-                                    <h3 className="font-pixel text-sm flex items-center gap-3">
+                                    <h3 className={`font-pixel text-sm flex items-center gap-3 ${quoterData.isPhase1 ? 'text-white/40' : 'text-white'}`}>
                                         PHASE_0: COLLATERAL_ACCUMULATION
-                                        <span className="bg-green-500 text-black px-2 py-0.5 text-[8px] animate-pulse">ACTIVE</span>
+                                        {quoterData.isPhase0 && !isPhase0TimeExpired && (
+                                            <span className="bg-green-500 text-black px-2 py-0.5 text-[8px] animate-pulse">ACTIVE</span>
+                                        )}
+                                        {quoterData.isPhase0 && isPhase0TimeExpired && (
+                                            <span className="bg-yellow-500 text-black px-2 py-0.5 text-[8px] animate-pulse">AWAITING_FINALIZATION</span>
+                                        )}
+                                        {quoterData.isPhase1 && (
+                                            <span className="bg-white/20 text-white px-2 py-0.5 text-[8px]">COMPLETE</span>
+                                        )}
                                     </h3>
                                     <p className="text-white/50 font-mono text-sm leading-relaxed">
-                                        Initial 14-day window. FAO is priced at a constant floor to ensure fair-start liquidity depth before curve activation.
+                                        {quoterData.isPhase1 || isPhase0TimeExpired
+                                            ? 'Phase 0 has ended. See Phase 1 for current bonding curve status.'
+                                            : 'Initial allocation phase. FAO is priced at a constant floor to ensure fair-start liquidity depth before curve activation.'
+                                        }
                                     </p>
                                 </div>
                             </div>
@@ -449,41 +476,110 @@ export default function Dashboard() {
                         </div>
                         <div className="phase-card space-y-6 p-5 md:p-8">
                             <div className="space-y-4">
-                                <h3 className="font-pixel text-sm text-white/40">PHASE_1: ALGORITHMIC_EXPANSION</h3>
+                                <h3 className={`font-pixel text-sm ${quoterData.isPhase1 ? 'text-yellow-400' : 'text-white/40'}`}>
+                                    PHASE_1: ALGORITHMIC_EXPANSION
+                                    {quoterData.isPhase1 && <span className="bg-yellow-500 text-black px-2 py-0.5 text-[8px] animate-pulse ml-3">ACTIVE</span>}
+                                </h3>
                                 <p className="text-white/30 font-mono text-sm leading-relaxed">
-                                    The mathematical expansion phase. Price increases proportionally with supply, following a predefined P = m * S + b slope.
+                                    {quoterData.isPhase1
+                                        ? 'The bonding curve is now active. Price increases with each token minted.'
+                                        : 'The mathematical expansion phase. Price increases proportionally with supply, following a predefined P = P₀ × (1 + x/S) curve.'
+                                    }
                                 </p>
-                                <div className="h-14 sm:h-16 md:h-20 w-full border border-white/5 bg-white/2 flex items-end px-3 sm:px-4 py-2 gap-1 overflow-hidden relative">
-                                    {[...Array(20)].map((_, i) => (
-                                        <div key={i} className="bg-white/10 flex-1" style={{ height: `${(i + 1) * 5}%` }} />
-                                    ))}
-                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                        <span className="font-pixel text-[8px] opacity-20">LOCKED_UNTIL_PHASE_I</span>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => setShowCurveInfo(!showCurveInfo)}
-                                    className="font-pixel text-[8px] text-white underline tracking-widest hover:opacity-100 opacity-60 uppercase"
-                                >
-                                    [ {showCurveInfo ? 'HIDE_TECHNICAL_SPEC' : 'EXPLORE_BONDING_CURVE_MECHANICS'} ]
-                                </button>
-                            </div>
 
-                            <AnimatePresence>
-                                {showCurveInfo && (
-                                    <motion.div
-                                        initial={{ opacity: 0, height: 0 }}
-                                        animate={{ opacity: 1, height: 'auto' }}
-                                        exit={{ opacity: 0, height: 0 }}
-                                        className="p-6 md:p-8 border border-white bg-white/5 space-y-4 overflow-hidden"
-                                    >
-                                        <h4 className="font-pixel text-xs tracking-widest">EXPANSION_TECHNICAL_SPEC</h4>
-                                        <p className="font-mono text-xs leading-relaxed text-white/60">
-                                            THE LINEAR BONDING CURVE ENSURES THAT EVERY FAO TOKEN MINTED INCREASES THE PER-TOKEN COST IN A PURELY MATHEMATICAL RELATIONSHIP: P = m * S + b. GUARANTEEING LIQUIDITY VIA THE UNDERLYING TREASURY.
-                                        </p>
-                                    </motion.div>
+                                {quoterData.isPhase1 ? (
+                                    <div className="space-y-4">
+                                        <div className="p-4 bg-yellow-500/10 border border-yellow-500/30">
+                                            <div className="font-pixel text-[9px] text-yellow-400 tracking-wider mb-3">
+                                                BONDING_CURVE: P = P₀ × (1 + x/S)
+                                            </div>
+                                            <div className="space-y-4">
+                                                <div className="grid grid-cols-2 gap-4 text-[10px] font-mono">
+                                                    {/* P0 */}
+                                                    <div className="space-y-1 bg-white/5 p-2 border border-white/5">
+                                                        <div className="flex items-baseline justify-between text-white/40 border-b border-white/10 pb-1 mb-1">
+                                                            <span className="text-white/60 font-bold text-xs">P₀</span>
+                                                            <span className="text-[7px] uppercase tracking-wide opacity-50">INITIAL_PRICE</span>
+                                                        </div>
+                                                        <div className="text-white text-xs font-bold">
+                                                            {quoterData.curveParams.initialPriceFormatted} <span className="text-[9px] opacity-40 font-normal">xDAI</span>
+                                                        </div>
+                                                        <div className="text-[8px] text-white/30 leading-tight pt-1">
+                                                            Base floor price established during Phase 0.
+                                                        </div>
+                                                    </div>
+
+                                                    {/* S */}
+                                                    <div className="space-y-1 bg-white/5 p-2 border border-white/5">
+                                                        <div className="flex items-baseline justify-between text-white/40 border-b border-white/10 pb-1 mb-1">
+                                                            <span className="text-white/60 font-bold text-xs">S</span>
+                                                            <span className="text-[7px] uppercase tracking-wide opacity-50">ANCHOR_SUPPLY</span>
+                                                        </div>
+                                                        <div className="text-white text-xs font-bold">
+                                                            {quoterData.curveParams.initialNetSaleFormatted} <span className="text-[9px] opacity-40 font-normal">FAO</span>
+                                                        </div>
+                                                        <div className="text-[8px] text-white/30 leading-tight pt-1">
+                                                            Total FAO sold in Phase 0. Acts as the liquidity scalar.
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* x */}
+                                                <div className="grid grid-cols-2 gap-4 text-[10px] font-mono">
+                                                    <div className="space-y-1 bg-white/5 p-2 border border-white/5">
+                                                        <div className="flex items-baseline justify-between text-white/40 border-b border-white/10 pb-1 mb-1">
+                                                            <span className="text-white/60 font-bold text-xs">x</span>
+                                                            <span className="text-[7px] uppercase tracking-wide opacity-50">CURVE_MINTED</span>
+                                                        </div>
+                                                        <div className="text-white text-xs font-bold">
+                                                            {quoterData.curveParams.curveSoldFormatted} <span className="text-[9px] opacity-40 font-normal">FAO</span>
+                                                        </div>
+                                                        <div className="text-[8px] text-white/30 leading-tight pt-1">
+                                                            New supply minted via bonding curve since Phase 1 start.
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Result P */}
+                                                    <div className="flex flex-col justify-center text-right p-2">
+                                                        <div className="text-[8px] text-white/40 mb-1 uppercase tracking-widest">Current Price (P)</div>
+                                                        <div className="text-yellow-400 font-bold text-xl">
+                                                            {quoterData.curveParams.currentPriceFormatted} <span className="text-xs text-yellow-500/50">xDAI</span>
+                                                        </div>
+                                                        <div className="text-[9px] font-mono text-white/20 mt-1">
+                                                            P = P₀ × (1 + x/S)
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {quoterData.quoteAge && (
+                                                <div className="text-[8px] font-mono text-white/30 mt-3 text-right">
+                                                    RPC_SYNCED: {quoterData.quoteAge} AGO
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <div className="p-3 bg-white/5 border border-white/10 font-mono text-[10px] space-y-2">
+                                            <div className="flex justify-between">
+                                                <span className="text-white/40">INITIAL_PHASE_FINALIZED:</span>
+                                                <span className={quoterData.contractData?.initialPhaseFinalized ? "text-green-500" : "text-red-500"}>
+                                                    {quoterData.contractData?.initialPhaseFinalized ? 'TRUE' : 'FALSE'}
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-white/40">MARKET_STATUS:</span>
+                                                <span className="text-white">AWAITING_FINALIZATION</span>
+                                            </div>
+                                            {quoterData.quoteAge && (
+                                                <div className="pt-2 mt-2 border-t border-white/5 text-[9px] text-white/30 text-right">
+                                                    RPC_SYNCED_VIA_WAGMI: {quoterData.quoteAge} AGO
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
                                 )}
-                            </AnimatePresence>
+                            </div>
                         </div>
                     </div>
                 </section>

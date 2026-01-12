@@ -4,10 +4,12 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSubgraphData } from '../hooks/useSubgraphData';
 import { useNativeCurrency } from '../hooks/useNativeCurrency';
+import { useFAOQuoter } from '../hooks/useFAOQuoter';
 
 export default function PhaseCountdown() {
     const { sale } = useSubgraphData({ pollInterval: 30000 });
     const { symbol: nativeSymbol } = useNativeCurrency();
+    const { isPhase1, contractData } = useFAOQuoter();
     const [showInfo, setShowInfo] = useState(false);
     const [timeLeft, setTimeLeft] = useState({
         days: 0,
@@ -17,15 +19,24 @@ export default function PhaseCountdown() {
     });
     const [ended, setEnded] = useState(false);
 
-    useEffect(() => {
-        // Use real initialPhaseEnd from subgraph
-        if (!sale?.initialPhaseEnd) return;
+    // Use RPC data for initialPhaseEnd (from quoter), fallback to subgraph
+    const initialPhaseEnd = contractData?.initialPhaseEnd
+        ? Number(contractData.initialPhaseEnd)
+        : (sale?.initialPhaseEnd ? Number(sale.initialPhaseEnd) : 0);
 
-        const targetDate = new Date(Number(sale.initialPhaseEnd) * 1000);
+    const saleStart = contractData?.saleStart
+        ? Number(contractData.saleStart)
+        : (sale?.saleStartTime ? Number(sale.saleStartTime) : 0);
+
+    useEffect(() => {
+        if (!initialPhaseEnd) return;
+
+        const targetDate = new Date(initialPhaseEnd * 1000);
 
         const timer = setInterval(() => {
             const now = new Date().getTime();
             const distance = targetDate.getTime() - now;
+
 
             if (distance < 0) {
                 clearInterval(timer);
@@ -43,14 +54,14 @@ export default function PhaseCountdown() {
         }, 1000);
 
         return () => clearInterval(timer);
-    }, [sale?.initialPhaseEnd]);
+    }, [initialPhaseEnd]);
 
     // Calculate dates for display
-    const startDateStr = sale?.saleStartTime
-        ? new Date(Number(sale.saleStartTime) * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    const startDateStr = saleStart
+        ? new Date(saleStart * 1000).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
         : '...';
-    const endDateStr = sale?.initialPhaseEnd
-        ? new Date(Number(sale.initialPhaseEnd) * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    const endDateStr = initialPhaseEnd
+        ? new Date(initialPhaseEnd * 1000).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
         : '...';
     const fixedPrice = sale?.currentPrice || '0.0001';
 
@@ -58,14 +69,15 @@ export default function PhaseCountdown() {
         <div className="border border-white/20 bg-white/5 p-6 space-y-4">
             <div className="flex justify-between items-center text-[10px] font-pixel text-white/40 tracking-widest uppercase">
                 <span>_PHASE_0_EXPIRATION</span>
-                <span className={ended ? 'text-yellow-500' : 'text-white'}>
-                    {ended ? 'PHASE_COMPLETE' : 'FIXED_PRICE_ACTIVE'}
+                <span className={ended || isPhase1 ? 'text-yellow-500' : 'text-white'}>
+                    {ended || isPhase1 ? 'BONDING_CURVE_ACTIVE' : 'FIXED_PRICE_ACTIVE'}
                 </span>
             </div>
 
-            {ended ? (
+            {ended || isPhase1 ? (
                 <div className="text-center py-4">
-                    <span className="font-pixel text-2xl text-yellow-500 animate-pulse">PHASE_1_ACTIVE</span>
+                    <span className="font-pixel text-2xl text-yellow-500 animate-pulse">PHASE_0_COMPLETE</span>
+                    <p className="font-mono text-[10px] text-white/40 mt-2">See Phase 1 card for bonding curve status →</p>
                 </div>
             ) : (
                 <div className="flex gap-4">
@@ -87,7 +99,7 @@ export default function PhaseCountdown() {
 
             <div className="pt-4 border-t border-white/10 flex justify-between items-center">
                 <span className="text-[10px] font-mono text-white/50 italic">
-                    {ended ? 'BONDING_CURVE_ACTIVE' : `ENDS: ${endDateStr}`}
+                    {ended || isPhase1 ? 'PRICE_INCREASING_WITH_SUPPLY' : `ENDS: ${endDateStr}`}
                 </span>
                 <button
                     onClick={() => setShowInfo(!showInfo)}
@@ -126,10 +138,7 @@ export default function PhaseCountdown() {
                                     </div>
                                 </div>
 
-                                <div className="p-3 bg-white/5 border border-white/10">
-                                    <div className="font-pixel text-[8px] text-yellow-400 mb-2 tracking-wider">PHASE_1: BONDING_CURVE</div>
-                                    <p>After Phase 0, the price follows a linear bonding curve: <span className="text-white font-bold">P = m × S + b</span>. Price increases with each token minted, rewarding early participants while maintaining full treasury backing.</p>
-                                </div>
+
 
                                 <div className="p-3 bg-green-500/10 border border-green-500/30">
                                     <div className="font-pixel text-[8px] text-green-400 mb-2 tracking-wider">RAGEQUIT_GUARANTEE</div>

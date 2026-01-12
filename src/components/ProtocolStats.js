@@ -2,8 +2,13 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useBalance, useReadContract } from 'wagmi';
+import { formatEther } from 'viem';
 import { useSubgraphData } from '../hooks/useSubgraphData';
-import { useNativeCurrency } from '../hooks/useNativeCurrency';
+
+import { useFAOQuoter } from '../hooks/useFAOQuoter';
+import { FAO_SALE_ADDRESS, FAO_TOKEN_ADDRESS } from '../hooks/useFAOContract';
+import FAOTokenABI from '../abi/FAOToken.json';
 
 /**
  * Format large numbers with K/M suffix (with space for clarity)
@@ -18,27 +23,48 @@ function formatNumber(num) {
 }
 
 /**
- * ProtocolStats - Displays live protocol metrics from subgraph
- * Auto-refreshes every 30 seconds with manual sync option
+ * ProtocolStats - Displays live metrics.
+ * Stats (TVL, Supply, Price) -> RPC (Real-time)
+ * Transactions -> Subgraph (History)
  */
 export default function ProtocolStats() {
     const [isExpanded, setIsExpanded] = useState(false);
-    const { symbol: nativeSymbol } = useNativeCurrency();
 
+
+    // -- RPC DATA (Real-time Stats) --
+    const { contractData, curveParams } = useFAOQuoter();
+
+    // TVL (Treasury Balance)
+    const { data: treasuryBalance } = useBalance({
+        address: FAO_SALE_ADDRESS,
+        chainId: 100, // Force Gnosis Chain
+        query: { refetchInterval: 10000 }
+    });
+
+    // Circulating Supply (Total Minted)
+    const { data: totalSupply } = useReadContract({
+        address: FAO_TOKEN_ADDRESS,
+        abi: FAOTokenABI,
+        functionName: 'totalSupply',
+        chainId: 100, // Force Gnosis Chain
+        query: { refetchInterval: 10000 }
+    });
+
+    // -- SUBGRAPH DATA (Transactions Log Only) --
     const {
-        sale,
         transactions,
-        isLoading,
-        error,
+        isLoading: isGraphLoading,
+        error: graphError,
         lastSyncedAtUTC,
         refetch
     } = useSubgraphData({ pollInterval: 30000 });
 
-    // Calculate countdown
+    // Calculate countdown using RPC data
     const getCountdown = () => {
-        if (!sale?.initialPhaseEnd) return null;
+        const endTimeBigInt = contractData?.initialPhaseEnd;
+        if (!endTimeBigInt) return null;
 
-        const endTime = Number(sale.initialPhaseEnd) * 1000;
+        const endTime = Number(endTimeBigInt) * 1000;
         const now = Date.now();
         const remaining = endTime - now;
 
@@ -54,13 +80,18 @@ export default function ProtocolStats() {
 
     const countdown = getCountdown();
 
+    // Derived values
+    const tvlFormatted = treasuryBalance ? Number(formatEther(treasuryBalance.value)).toFixed(2) : '0.00';
+    const supplyFormatted = totalSupply ? formatEther(totalSupply) : '0';
+    const priceFormatted = curveParams?.currentPriceFormatted || '0.0001';
+
     return (
         <div className="border border-white/20 bg-white/[0.02] relative overflow-hidden">
             {/* Header with sync status */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-white/5">
                 <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${isLoading ? 'bg-yellow-500 animate-pulse' : error ? 'bg-red-500' : 'bg-green-500'}`} />
-                    <span className="font-pixel text-[8px] tracking-[0.3em] opacity-50 uppercase">PROTOCOL_STATUS</span>
+                    <div className={`w-2 h-2 rounded-full ${isGraphLoading ? 'bg-yellow-500 animate-pulse' : graphError ? 'bg-red-500' : 'bg-green-500'}`} />
+                    <span className="font-pixel text-[8px] tracking-[0.3em] opacity-50 uppercase">INDEXER_STATUS</span>
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -71,33 +102,33 @@ export default function ProtocolStats() {
                     )}
                     <button
                         onClick={() => refetch()}
-                        disabled={isLoading}
+                        disabled={isGraphLoading}
                         className="font-pixel text-[8px] px-2 py-1 border border-white/20 hover:bg-white hover:text-black transition-all disabled:opacity-30 uppercase tracking-widest"
                     >
-                        {isLoading ? '↻ SYNCING...' : '↻ SYNC_NOW'}
+                        {isGraphLoading ? '↻ SYNCING...' : '↻ SYNC_NOW'}
                     </button>
                 </div>
             </div>
 
-            {/* Main stats grid */}
+            {/* Main stats grid - POWERED BY RPC */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-white/10">
                 {/* TVL */}
                 <div className="bg-black p-4 space-y-2">
-                    <span className="font-pixel text-[7px] opacity-30 uppercase tracking-widest block">TVL_LOCKED</span>
+                    <span className="font-pixel text-[7px] opacity-30 uppercase tracking-widest block">PROTOCOL_TREASURY</span>
                     <div className="flex items-baseline gap-2">
                         <span className="text-2xl font-mono font-black">
-                            {sale?.totalAmountRaised || '0.00'}
+                            {tvlFormatted}
                         </span>
-                        <span className="font-pixel text-[8px] opacity-50">{nativeSymbol}</span>
+                        <span className="font-pixel text-[8px] opacity-50">{treasuryBalance?.symbol || 'xDAI'}</span>
                     </div>
                 </div>
 
                 {/* Circulating Supply */}
                 <div className="bg-black p-4 space-y-2">
-                    <span className="font-pixel text-[7px] opacity-30 uppercase tracking-widest block">CIRCULATING</span>
+                    <span className="font-pixel text-[7px] opacity-30 uppercase tracking-widest block">CIRCULATING_SUPPLY</span>
                     <div className="flex items-baseline gap-2">
                         <span className="text-2xl font-mono font-black">
-                            {formatNumber(sale?.circulatingSupply)}
+                            {formatNumber(supplyFormatted)}
                         </span>
                         <span className="font-pixel text-[8px] opacity-50">FAO</span>
                     </div>
@@ -105,20 +136,25 @@ export default function ProtocolStats() {
 
                 {/* Current Price */}
                 <div className="bg-black p-4 space-y-2">
-                    <span className="font-pixel text-[7px] opacity-30 uppercase tracking-widest block">PRICE</span>
+                    <span className="font-pixel text-[7px] opacity-30 uppercase tracking-widest block">CURRENT_FAO_PRICE</span>
                     <div className="flex items-baseline gap-2">
                         <span className="text-2xl font-mono font-black">
-                            {sale?.currentPrice || '0.0000'}
+                            {priceFormatted}
                         </span>
-                        <span className="font-pixel text-[8px] opacity-50">{nativeSymbol}</span>
+                        <span className="font-pixel text-[8px] opacity-50">xDAI</span>
+                        <span className="font-mono text-[8px] opacity-30">≈$ {(Number(priceFormatted) * 1.00).toFixed(4)} USD</span>
                     </div>
                 </div>
 
                 {/* Countdown */}
                 <div className="bg-black p-4 space-y-2">
-                    <span className="font-pixel text-[7px] opacity-30 uppercase tracking-widest block">PHASE_I_ENDS</span>
-                    {countdown?.ended ? (
-                        <span className="text-2xl font-mono font-black text-yellow-500">ENDED</span>
+                    <span className="font-pixel text-[7px] opacity-30 uppercase tracking-widest block">
+                        {contractData?.initialPhaseFinalized || countdown?.ended ? 'PHASE_1_ACTIVE' : 'PHASE_0_ACTIVE'}
+                    </span>
+                    {countdown?.ended && !contractData?.initialPhaseFinalized ? (
+                        <span className="text-sm font-mono text-yellow-500 animate-pulse">AWAITING_FINALIZATION</span>
+                    ) : countdown?.ended ? (
+                        <span className="text-2xl font-mono font-black text-green-500">ACTIVE</span>
                     ) : countdown ? (
                         <div className="flex items-baseline gap-1">
                             <span className="text-2xl font-mono font-black">{countdown.days}</span>
@@ -172,7 +208,7 @@ export default function ProtocolStats() {
                                     </div>
                                     <div className="flex items-center gap-4">
                                         <span className="font-mono text-[10px] font-bold">
-                                            {tx.amount} {nativeSymbol}
+                                            {tx.amount} xDAI
                                         </span>
                                         <span className="font-pixel text-[7px] opacity-30">
                                             {tx.relativeTime}
@@ -186,11 +222,13 @@ export default function ProtocolStats() {
             </AnimatePresence>
 
             {/* Error display */}
-            {error && (
-                <div className="px-4 py-2 bg-red-500/10 border-t border-red-500/20">
-                    <span className="font-pixel text-[8px] text-red-500">ERROR: {error}</span>
-                </div>
-            )}
-        </div>
+            {
+                graphError && (
+                    <div className="px-4 py-2 bg-red-500/10 border-t border-red-500/20">
+                        <span className="font-pixel text-[8px] text-red-500">ERROR: {graphError}</span>
+                    </div>
+                )
+            }
+        </div >
     );
 }

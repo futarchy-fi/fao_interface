@@ -2,10 +2,11 @@
 
 import { useState, useMemo } from 'react';
 import { parseEther, formatEther } from 'viem';
-import { useAccount, useReadContract, useWalletClient, usePublicClient } from 'wagmi';
+import { useAccount, useWalletClient, usePublicClient } from 'wagmi';
 import { useFAOContract, FAO_SALE_ADDRESS } from '../hooks/useFAOContract';
-import { useNativeCurrency } from '../hooks/useNativeCurrency';
+
 import { useSubgraphData } from '../hooks/useSubgraphData';
+import { useFAOQuoter } from '../hooks/useFAOQuoter';
 import { toast } from 'sonner';
 import TransactionConfirmModal from './TransactionConfirmModal';
 import FAOSaleABI from '../abi/FAOSale.json';
@@ -13,39 +14,46 @@ import FAOSaleABI from '../abi/FAOSale.json';
 export default function BuyPanel({ onTransactionSuccess }) {
     const [amount, setAmount] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const { price: nativePrice, symbol: nativeSymbol } = useNativeCurrency();
+    const [isSimulating, setIsSimulating] = useState(false);
+
+    // Hardcode to xDAI since FAO is on Gnosis Chain
+    const nativeSymbol = 'xDAI';
+    const nativePrice = 1.00; // xDAI is stable
+    // const { price: nativePrice, symbol: nativeSymbol } = useNativeCurrency(); // Removed to avoid ETH/Mainnet confusion
     const { saleContract } = useFAOContract();
     const { address } = useAccount();
     const { data: walletClient } = useWalletClient();
     const publicClient = usePublicClient();
     const { refetch: refetchSubgraph } = useSubgraphData();
 
-    // Fetch current price from contract
-    const { data: currentPriceWei } = useReadContract({
-        address: FAO_SALE_ADDRESS,
-        abi: FAOSaleABI,
-        functionName: 'currentPriceWeiPerToken',
-        watch: true,
-    });
+    // Use the new quoter hook
+    const {
+        getQuoteForEth,
+        getQuoteForTokens,
+        simulateBuy,
+        curveParams,
+        quoteAge,
+        isPhase1
+    } = useFAOQuoter();
 
     const usdValue = (parseFloat(amount) || 0) * nativePrice;
 
-    // Calculate tokens based on input Native Token and current price
-    // If price is 0 (not loaded), default to 0
-    const estimatedTokens = useMemo(() => {
-        if (!amount || !currentPriceWei || currentPriceWei === 0n) return 0;
+    // Calculate tokens and exact cost using quoter
+    const quoteResult = useMemo(() => {
+        if (!amount || parseFloat(amount) <= 0) {
+            return { numTokens: 0n, exactCost: 0n, change: 0n };
+        }
         try {
             const ethWei = parseEther(amount);
-            // numTokens = ethWei / currentPriceWei
-            // Note: This is an estimation. For a bonding curve, the price moves. 
-            // However for Phase 1 (fixed) this is exact.
-            return Number(ethWei * 1000000000000000000n / currentPriceWei) / 1000000000000000000;
+            return getQuoteForEth(ethWei);
         } catch (e) {
-            return 0;
+            return { numTokens: 0n, exactCost: 0n, change: 0n };
         }
-    }, [amount, currentPriceWei]);
+    }, [amount, getQuoteForEth]);
 
-    const handleBuyClick = () => {
+    const estimatedTokens = Number(quoteResult.numTokens);
+
+    const handleBuyClick = async () => {
         if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
             toast.error("INVALID_INPUT_DETECTED");
             return;
@@ -54,6 +62,21 @@ export default function BuyPanel({ onTransactionSuccess }) {
             toast.error("WALLET_NOT_CONNECTED");
             return;
         }
+        if (quoteResult.numTokens === 0n) {
+            toast.error("AMOUNT_TOO_LOW: Minimum 1 Token");
+            return;
+        }
+
+        // Simulate first to catch reverts before opening modal
+        setIsSimulating(true);
+        const simulation = await simulateBuy(quoteResult.numTokens, quoteResult.exactCost);
+        setIsSimulating(false);
+
+        if (!simulation.success) {
+            toast.error(`SIMULATION_FAILED: ${simulation.error}`);
+            return;
+        }
+
         setIsModalOpen(true);
     };
 
@@ -64,21 +87,22 @@ export default function BuyPanel({ onTransactionSuccess }) {
         const toastId = toast.loading("INITIATING_SEQUENCE...");
 
         try {
-            const ethWeiInput = parseEther(amount);
-
-            // 1. Calculate max whole tokens that can be bought with this amount
-            // numTokens = floor(ethWeiInput / currentPriceWei)
-            // Note: Contract buys in WHOLE tokens (uint256 numTokens)
-            const numTokensBigInt = ethWeiInput / (currentPriceWei || BigInt(1e14));
+            const numTokensBigInt = quoteResult.numTokens;
+            const exactCostWei = quoteResult.exactCost;
 
             if (numTokensBigInt === 0n) {
                 toast.error("AMOUNT_TOO_LOW: Minimum 1 Token", { id: toastId });
                 return;
             }
 
-            // 2. Recalculate exact cost required
-            // cost = numTokens * currentPriceWei
-            const exactCostWei = numTokensBigInt * (currentPriceWei || BigInt(1e14));
+            // Final simulation check (state may have changed)
+            toast.loading("VALIDATING_STATE...", { id: toastId });
+            const finalCheck = await simulateBuy(numTokensBigInt, exactCostWei);
+
+            if (!finalCheck.success) {
+                toast.error(`STATE_CHANGED: ${finalCheck.error}. Refresh quote.`, { id: toastId });
+                return;
+            }
 
             toast.loading(`SIGN_TRANSACTION: Buying ${numTokensBigInt.toString()} FAO...`, { id: toastId });
 
@@ -87,7 +111,7 @@ export default function BuyPanel({ onTransactionSuccess }) {
                 abi: FAOSaleABI,
                 functionName: 'buy',
                 args: [numTokensBigInt],
-                value: exactCostWei // Send exact calculated amount, not the raw input
+                value: exactCostWei
             });
 
             toast.loading(`PROCESSING: ${hash.slice(0, 10)}...`, { id: toastId });
@@ -109,24 +133,13 @@ export default function BuyPanel({ onTransactionSuccess }) {
     };
 
     // Data for the confirmation modal
-    // Recalculate for display consistency
-    const displayTokens = useMemo(() => {
-        if (!amount || !currentPriceWei || currentPriceWei === 0n) return 0;
-        try {
-            const ethWei = parseEther(amount);
-            const tokens = ethWei / currentPriceWei;
-            return Number(tokens);
-        } catch { return 0; }
-    }, [amount, currentPriceWei]);
-
-    const receiveAmount = displayTokens.toLocaleString(undefined, { maximumFractionDigits: 0 }); // Whole tokens only effectively
+    const receiveAmount = estimatedTokens.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
     // Calculate reserves based on the purchase
-    // 66% Treasury, 20% Incentive, 14% Insider (based on original file logic, likely illustrative)
     const distribution = [
-        { label: 'TREASURY_RESERVE (66%)', value: (displayTokens * 0.66).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
-        { label: 'INCENTIVE_RESERVE (20%)', value: (displayTokens * 0.20).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
-        { label: 'INSIDER_VESTING (14%)', value: (displayTokens * 0.14).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+        { label: 'TREASURY_RESERVE (50%)', value: (estimatedTokens * 0.50).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+        { label: 'INCENTIVE_RESERVE (20%)', value: (estimatedTokens * 0.20).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+        { label: 'INSIDER_VESTING (30%)', value: (estimatedTokens * 0.30).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
     ];
 
     return (
@@ -176,17 +189,35 @@ export default function BuyPanel({ onTransactionSuccess }) {
                     />
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 font-pixel text-[10px] text-white/30 group-focus-within:text-black">{nativeSymbol}</div>
                 </div>
-                {/* Display Current Price */}
-                <div className="text-[9px] font-mono text-white/30 text-right">
-                    PRICE_PER_TOKEN: {currentPriceWei ? formatEther(currentPriceWei) : "..."} {nativeSymbol}
+                {/* Display Current Price and Quote Info */}
+                <div className="flex justify-between text-[9px] font-mono text-white/30">
+                    <span>
+                        PRICE: {curveParams.currentPriceFormatted} {nativeSymbol}
+                        {isPhase1 && <span className="text-yellow-500 ml-1">(CURVE)</span>}
+                    </span>
+                    {quoteAge && (
+                        <span>QUOTE: {quoteAge} AGO</span>
+                    )}
                 </div>
+                {/* Show exact cost */}
+                {quoteResult.exactCost > 0n && (
+                    <div className="text-[9px] font-mono text-cyan-400/70">
+                        EXACT_COST: {formatEther(quoteResult.exactCost)} {nativeSymbol}
+                        {quoteResult.change > 0n && (
+                            <span className="text-white/30 ml-2">
+                                (CHANGE: {formatEther(quoteResult.change)} {nativeSymbol})
+                            </span>
+                        )}
+                    </div>
+                )}
             </div>
 
             <button
                 onClick={handleBuyClick}
-                className="w-full terminal-button py-6 sm:py-8 text-base sm:text-lg font-bold hover:!bg-white hover:!text-black transition-all duration-500"
+                disabled={isSimulating}
+                className="w-full terminal-button py-6 sm:py-8 text-base sm:text-lg font-bold hover:!bg-white hover:!text-black transition-all duration-500 disabled:opacity-50"
             >
-                EXECUTE_BUY
+                {isSimulating ? 'SIMULATING...' : 'EXECUTE_BUY'}
             </button>
 
             <TransactionConfirmModal
@@ -194,7 +225,7 @@ export default function BuyPanel({ onTransactionSuccess }) {
                 onClose={() => setIsModalOpen(false)}
                 onConfirm={executeBuy}
                 data={{
-                    amount: amount,
+                    amount: formatEther(quoteResult.exactCost),
                     receiveAmount: receiveAmount,
                     distribution: distribution,
                     inputSymbol: nativeSymbol,
@@ -204,4 +235,3 @@ export default function BuyPanel({ onTransactionSuccess }) {
         </div>
     );
 }
-

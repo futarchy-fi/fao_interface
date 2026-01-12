@@ -2,8 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useBalance, useReadContract } from 'wagmi';
+import { formatEther } from 'viem';
 import { useSubgraphData } from '../hooks/useSubgraphData';
-import { useNativeCurrency } from '../hooks/useNativeCurrency';
+import { useFAOQuoter } from '../hooks/useFAOQuoter';
+import { FAO_SALE_ADDRESS, FAO_TOKEN_ADDRESS } from '../hooks/useFAOContract';
+import FAOTokenABI from '../abi/FAOToken.json';
 
 /**
  * Format large numbers with K/M suffix (with space for clarity)
@@ -18,18 +22,36 @@ function formatNumber(num) {
 }
 
 export default function StatusHUD() {
-    // Use native currency for both symbol and price (xDAI=$1, ETH=fetched)
-    const { symbol: nativeSymbol, price: nativePrice, isGnosis } = useNativeCurrency();
-    const { sale, lastSyncedAtUTC, isLoading } = useSubgraphData({ pollInterval: 30000 });
+    // -- RPC DATA (Real-time, Forced Gnosis Chain) --
+    const { contractData, curveParams } = useFAOQuoter();
 
-    // Live data from subgraph
-    const tvl = sale?.totalAmountRaised || '0.00';
-    const circulating = sale?.circulatingSupply || '0';
-    const currentPrice = sale?.currentPrice || '0.0000';
+    // TVL (Treasury Balance)
+    const { data: treasuryBalance } = useBalance({
+        address: FAO_SALE_ADDRESS,
+        chainId: 100, // Force Gnosis Chain
+        query: { refetchInterval: 10000 }
+    });
 
-    // Calculate USD values using native currency price (xDAI=$1, ETH=market price)
-    const tvlUsd = nativePrice ? (parseFloat(tvl) * nativePrice).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '...';
-    const priceUsd = nativePrice ? (parseFloat(currentPrice) * nativePrice).toFixed(4) : '...';
+    // Circulating Supply (Total Minted)
+    const { data: totalSupply } = useReadContract({
+        address: FAO_TOKEN_ADDRESS,
+        abi: FAOTokenABI,
+        functionName: 'totalSupply',
+        chainId: 100, // Force Gnosis Chain
+        query: { refetchInterval: 10000 }
+    });
+
+    // Subgraph just for sync status
+    const { lastSyncedAtUTC, isLoading } = useSubgraphData({ pollInterval: 30000 });
+
+    // Derived values
+    const tvlFormatted = treasuryBalance ? Number(formatEther(treasuryBalance.value)).toFixed(2) : '0.00';
+    const supplyFormatted = totalSupply ? formatEther(totalSupply) : '0';
+    const priceFormatted = curveParams?.currentPriceFormatted || '0.0001';
+
+    // USD Values (xDAI ≈ 1 USD)
+    const tvlUsd = tvlFormatted;
+    const priceUsd = (Number(priceFormatted)).toFixed(4);
 
     const [mounted, setMounted] = useState(false);
     const [order, setOrder] = useState([0, 1, 2]);
@@ -57,9 +79,9 @@ export default function StatusHUD() {
     }, []);
 
     const stats = [
-        { label: 'PROTOCOL_TREASURY', value: `${tvl} ${nativeSymbol}`, subValue: `$${tvlUsd} USD` },
-        { label: 'CIRCULATING_SUPPLY', value: `${formatNumber(circulating)} FAO`, subValue: sale?.initialPhaseFinalized ? 'CURVE_PHASE' : 'PHASE_0_ACTIVE' },
-        { label: 'CURRENT_FAO_PRICE', value: `${currentPrice} ${nativeSymbol}`, subValue: `ƒ%^ $${priceUsd} USD` },
+        { label: 'PROTOCOL_TREASURY', value: `${tvlFormatted} xDAI`, subValue: `$${tvlUsd} USD` },
+        { label: 'CIRCULATING_SUPPLY', value: `${formatNumber(supplyFormatted)} FAO`, subValue: contractData?.initialPhaseFinalized ? 'PHASE_1_ACTIVE' : 'PHASE_0_ACTIVE' },
+        { label: 'CURRENT_FAO_PRICE', value: `${priceFormatted} xDAI`, subValue: `ƒ%^ $${priceUsd} USD` },
     ];
 
     const rotateNext = () => {
