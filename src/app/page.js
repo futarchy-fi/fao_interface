@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { formatEther } from 'viem';
 import { useAccount, useReadContract } from 'wagmi';
@@ -47,6 +48,8 @@ export default function Dashboard() {
     const navDragXRef = useRef(0);
     const navWidthRef = useRef(0);
     const navPendingRef = useRef(0);
+    const [tradePanelOpen, setTradePanelOpen] = useState(false);
+    const [portalReady, setPortalReady] = useState(false);
     const [portfolioUpdatePending, setPortfolioUpdatePending] = useState(false);
     const previousBalanceRef = useRef(null);
     const optimisticStartTimeRef = useRef(null);
@@ -94,6 +97,10 @@ export default function Dashboard() {
         handleResize();
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    useEffect(() => {
+        setPortalReady(true);
     }, []);
 
     // Mobile Navigation Effects
@@ -881,118 +888,76 @@ export default function Dashboard() {
                         </section>
                     </main >
 
-                    {/* RIGHT STICKY SIDEBAR (TRADING) */}
+                    {/* RIGHT SIDEBAR (TRADING) */}
                     < aside className="w-full lg:max-w-[440px] xl:max-w-[480px] lg:sticky lg:top-12 lg:self-start" >
-                        <div className="flex flex-col gap-8">
-                            {/* Main Trade Console (priority on desktop) */}
-                            <div className="order-2 lg:order-1 lg:sticky lg:top-20">
-                                <div className="flex flex-col border border-white shadow-[0_0_60px_rgba(255,255,255,0.05)] bg-black">
-                                    <div className="p-2">
-                                        <SwapPanel onTransactionSuccess={onTransactionSuccess} />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Personal Portfolio Card */}
-                            <div className="order-1 lg:order-2 p-8 border border-white/20 bg-white/5 relative overflow-hidden group">
-                                <div className="absolute top-0 right-0 p-4 opacity-10 font-pixel text-[40px] pointer-events-none group-hover:opacity-20 transition-opacity uppercase">FAO</div>
-
-                                {/* Blur overlay when not connected */}
-                                {!address && (
-                                    <div className="absolute inset-0 z-20 flex items-center justify-center flex-col text-center p-6 backdrop-blur-sm bg-black/80">
-                                        <span className="font-pixel font-bold text-xs mb-2 tracking-widest">WALLET_NOT_CONNECTED</span>
-                                        <p className="text-[9px] font-pixel text-white/40">Connect wallet to view portfolio</p>
-                                    </div>
-                                )}
-
-                                {/* Subtle indicator when optimistic update is pending */}
-                                {portfolioUpdatePending && address && (
-                                    <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 px-2 py-1 bg-black/60 rounded-sm">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                                        <span className="font-pixel text-[7px] text-green-500/80 tracking-wider">SYNCING...</span>
-                                    </div>
-                                )}
-
-                                <div className="flex justify-between items-center mb-8">
-                                    <h3 className="font-pixel text-[10px] tracking-[0.3em] opacity-30 uppercase">/IDENTIFIED_PORTFOLIO</h3>
-                                    <div className="flex items-center gap-2">
-                                        {isSyncing && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />}
-                                        <span className="font-mono text-[8px] opacity-30">
-                                            {lastSyncedAtUTC ? `SYNCED: ${lastSyncedAtUTC}` : 'SYNCING...'}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="space-y-8">
-                                    <div className="flex justify-between items-end">
-                                        <div className="flex flex-col">
-                                            <span className="text-[8px] font-pixel opacity-20 uppercase mb-1">HOLDINGS (CONFIRMED)</span>
-                                            <span className="text-4xl font-mono font-black">{formattedRpcHoldings}</span>
-
-                                            {/* Explicit Optimistic Feedback */}
-                                            {portfolioUpdatePending && optimisticDelta !== 0 && (
-                                                <div className="flex items-center gap-2 mt-1 animate-pulse">
-                                                    <span className="text-[10px] font-mono text-green-400 bg-green-500/10 px-1 rounded">
-                                                        {formattedDelta} SYNCING...
-                                                    </span>
-                                                    <span className="text-[8px] font-pixel text-white/30">
-                                                        (PROJECTED: {formattedProjected})
-                                                    </span>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-pixel text-[10px] opacity-40 mb-1 tracking-widest">FAO</span>
-                                            <button
-                                                onClick={addToMetaMask}
-                                                className="group relative p-1.5 hover:bg-white/10 rounded transition-colors"
-                                                title="Add FAO to MetaMask"
-                                            >
-                                                {/* MetaMask Fox SVG */}
-                                                <svg width="16" height="16" viewBox="0 0 318.6 318.6" className="opacity-40 group-hover:opacity-100 transition-opacity">
-                                                    <polygon fill="#E2761B" points="274.1,35.5 174.6,109.4 193,65.8" />
-                                                    <polygon fill="#E4761B" points="44.4,35.5 143.1,110.1 125.6,65.8" />
-                                                    <polygon fill="#D7C1B3" points="238.3,206.8 211.8,247.4 268.5,263 284.8,207.7" />
-                                                    <polygon fill="#D7C1B3" points="33.9,207.7 50.1,263 106.8,247.4 80.3,206.8" />
-                                                    <polygon fill="#233447" points="103.6,138.2 87.8,162.1 143.8,164.6 141.7,104.3" />
-                                                    <polygon fill="#233447" points="214.9,138.2 175.9,103.4 174.6,164.6 230.8,162.1" />
-                                                    <polygon fill="#CD6116" points="106.8,247.4 140.6,230.9 111.4,208.1" />
-                                                    <polygon fill="#CD6116" points="177.9,230.9 211.8,247.4 207.1,208.1" />
-                                                    <polygon fill="#E4751F" points="211.8,247.4 177.9,230.9 180.6,253.3 180.3,262.3" />
-                                                    <polygon fill="#E4751F" points="106.8,247.4 138.3,262.3 138.1,253.3 140.6,230.9" />
-                                                    <polygon fill="#F6851B" points="138.8,193.5 110.6,185.2 130.5,176.1" />
-                                                    <polygon fill="#F6851B" points="179.7,193.5 188,176.1 208,185.2" />
-                                                    <polygon fill="#C0AD9E" points="106.8,247.4 111.6,206.8 80.3,207.7" />
-                                                    <polygon fill="#C0AD9E" points="207,206.8 211.8,247.4 238.3,207.7" />
-                                                    <polygon fill="#763D16" points="230.8,162.1 174.6,164.6 179.8,193.5 188.1,176.1 208.1,185.2" />
-                                                    <polygon fill="#763D16" points="110.6,185.2 130.6,176.1 138.8,193.5 143.8,164.6 87.8,162.1" />
-                                                    <polygon fill="#E2761B" points="87.8,162.1 111.4,208.1 110.6,185.2" />
-                                                    <polygon fill="#E2761B" points="208.1,185.2 207.1,208.1 230.8,162.1" />
-                                                    <polygon fill="#F6851B" points="143.8,164.6 138.8,193.5 145.1,227.6 146.6,182.4 143.8,164.6" />
-                                                    <polygon fill="#F6851B" points="174.6,164.6 171.9,182.3 173.1,227.6 179.8,193.5" />
-                                                </svg>
-                                                <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black border border-white/20 text-white text-[7px] font-pixel px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">ADD_TO_WALLET</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="p-4 border border-white/10 bg-black">
-                                            <span className="text-[7px] font-pixel opacity-20 block mb-1 uppercase">FAO_PRICE</span>
-                                            <span className="font-mono text-sm leading-none">{sale?.currentPrice || '0.0001'} {nativeSymbol}</span>
-                                        </div>
-                                        <div className="p-4 border border-white bg-white text-black">
-                                            <span className="text-[7px] font-pixel opacity-60 block mb-1 uppercase">EXIT_VALUE (EST)</span>
-                                            <span className="font-mono text-sm leading-none underline decoration-2">{formattedExitValue} {nativeSymbol}</span>
+                        <div className="hidden lg:flex flex-col gap-6">
+                            <div className="border border-white/10 bg-black/80">
+                                <div className="p-2">
+                                    <div className="flex flex-col border border-white shadow-[0_0_60px_rgba(255,255,255,0.05)] bg-black">
+                                        <div className="p-2">
+                                            <SwapPanel
+                                                onTransactionSuccess={onTransactionSuccess}
+                                                holdingsValue={formattedRpcHoldings}
+                                                exitValue={formattedExitValue}
+                                                exitSymbol={nativeSymbol}
+                                            />
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="order-3 p-6 border border-white/5 font-mono text-[9px] opacity-20 italic leading-relaxed uppercase tracking-widest">
+                            <div className="p-6 border border-white/5 font-mono text-[9px] opacity-20 italic leading-relaxed uppercase tracking-widest">
                                 DAO_CLEARANCE_LEVEL: ALPHA // SECURE_SOCKET: ENABLED // BY_OPERATING_THIS_TERMINAL_YOU_ACCEPT_ON_CHAIN_DYNAMICS.
                             </div>
                         </div>
                     </aside >
                 </div >
+
+                {/* Mobile floating button + drawer */}
+                {portalReady && createPortal((
+                    <div className="lg:hidden">
+                    <button
+                        type="button"
+                        onClick={() => setTradePanelOpen(true)}
+                        className="fixed w-full z-[2200] border border-white/20 bg-black/80 text-white/80 px-4 py-3 font-pixel text-[9px] tracking-widest shine-button"
+                        style={{ bottom: 'calc(var(--hud-height) + 44px)' }}
+                    >
+                        OPEN_SWAP
+                    </button>
+
+                    {tradePanelOpen && (
+                        <div className="fixed inset-0 z-[2300] bg-black/70 backdrop-blur-sm">
+                            <div
+                                className="absolute left-0 right-0 bottom-0 border-t border-white/10 bg-black"
+                                style={{ maxHeight: '80dvh' }}
+                            >
+                                <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                                    <span className="font-pixel text-[9px] tracking-widest">TRADE_PANEL</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setTradePanelOpen(false)}
+                                        className="font-pixel text-[10px] opacity-60 hover:opacity-100"
+                                    >
+                                        [ CLOSE ]
+                                    </button>
+                                </div>
+                                <div className="p-3 overflow-y-auto" style={{ maxHeight: 'calc(80dvh - 52px)' }}>
+                                    <div className="flex flex-col border border-white shadow-[0_0_60px_rgba(255,255,255,0.05)] bg-black">
+                                        <div className="p-2">
+                                            <SwapPanel
+                                                onTransactionSuccess={onTransactionSuccess}
+                                                holdingsValue={formattedRpcHoldings}
+                                                exitValue={formattedExitValue}
+                                                exitSymbol={nativeSymbol}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    </div>
+                ), document.body)}
 
                 {/* Website Footer */}
                 < footer className="mt-24 md:mt-32 pt-12 md:pt-16 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8 pb-12" >

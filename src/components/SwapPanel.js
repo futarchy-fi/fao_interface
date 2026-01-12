@@ -13,7 +13,12 @@ import FAOSaleABI from '../abi/FAOSale.json';
 const NATIVE_SYMBOL = 'xDAI';
 const TOKEN_SYMBOL = 'FAO';
 
-export default function SwapPanel({ onTransactionSuccess }) {
+export default function SwapPanel({
+    onTransactionSuccess,
+    holdingsValue,
+    exitValue,
+    exitSymbol
+}) {
     // Mode: 'BUY' (xDAI -> FAO) or 'SELL' (FAO -> xDAI)
     const [mode, setMode] = useState('BUY');
 
@@ -234,14 +239,19 @@ export default function SwapPanel({ onTransactionSuccess }) {
 
     return (
         <div className="flex flex-col gap-4 w-full relative overflow-hidden p-4 sm:p-6 border transition-colors duration-700 bg-black border-white/10">
-            {/* Header */}
-            <div className="flex justify-between items-center border-b pb-4 border-white/10 mb-2">
-                <h2 className="ico-header">{mode === 'BUY' ? 'SWAP (BUY)' : 'SWAP (SELL)'}</h2>
-                <div className="flex items-center gap-2">
-                    <div className={`w-1.5 h-1.5 rounded-full ${mode === 'BUY' ? 'bg-blue-500' : 'bg-red-500'} animate-pulse`} />
-                    <span className="font-pixel text-[8px] opacity-40 uppercase">
-                        {mode === 'BUY' ? 'MINT_MODE' : 'BURN_MODE'}
-                    </span>
+            {/* Simplified portfolio summary */}
+            <div className="grid grid-cols-2 gap-3">
+                <div className="border border-white/10 bg-white/5 p-3">
+                    <div className="text-[9px] font-pixel opacity-30 uppercase mb-2">HOLDINGS</div>
+                    <div className="font-mono text-sm font-bold">
+                        {holdingsValue ?? '0'}
+                    </div>
+                </div>
+                <div className="border border-white/10 bg-white/5 p-3">
+                    <div className="text-[9px] font-pixel opacity-30 uppercase mb-2">AVG_EXIT</div>
+                    <div className="font-mono text-sm font-bold">
+                        {exitValue ?? '0'} {exitSymbol ?? NATIVE_SYMBOL}
+                    </div>
                 </div>
             </div>
 
