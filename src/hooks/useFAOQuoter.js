@@ -128,23 +128,23 @@ export function useFAOQuoter() {
     }, [parsedData]);
 
     /**
-     * Calculate cost/value in wei for a given amount of tokens (in wei)
+     * Calculate cost/value in wei for a given amount of WHOLE tokens
      * Uses LIVE contract price from RPC
      * 
-     * @param {bigint} tokenAmountWei - Amount of tokens in wei (1e18 basis)
+     * @param {bigint} wholeTokens - Number of WHOLE tokens (not Wei)
      * @returns {bigint} Cost/Value in wei
      */
-    const getQuoteForWei = useCallback((tokenAmountWei) => {
-        const amount = BigInt(tokenAmountWei);
+    const getQuoteForTokens = useCallback((wholeTokens) => {
+        const amount = BigInt(wholeTokens);
         if (amount <= 0n) return 0n;
 
-        // Price is "Wei Per 1e18 Token"
-        // Value = (Amount * Price) / 1e18
-        return (amount * parsedData.currentPriceWei) / 1000000000000000000n;
+        // Price is Wei per WHOLE token
+        // Cost = wholeTokens * pricePerToken
+        return amount * parsedData.currentPriceWei;
     }, [parsedData.currentPriceWei]);
 
     /**
-     * Calculate maximum tokens (in wei) purchasable with a given amount of ETH/xDAI
+     * Calculate maximum WHOLE tokens purchasable with a given amount of ETH/xDAI
      * 
      * @param {bigint} weiAmount - Amount of wei to spend
      * @returns {{ numTokens: bigint, exactCost: bigint, change: bigint }}
@@ -159,12 +159,11 @@ export function useFAOQuoter() {
             return { numTokens: 0n, exactCost: 0n, change: weiAmount };
         }
 
-        // numTokens = (weiAmount * 1e18) / price
-        const numTokens = (weiAmount * 1000000000000000000n) / price;
+        // numTokens = WHOLE tokens = weiAmount / pricePerWholeToken
+        const numTokens = weiAmount / price;
 
-        // Recalculate exact cost to handle rounding
-        // exactCost = (numTokens * price) / 1e18
-        const exactCost = (numTokens * price) / 1000000000000000000n;
+        // Recalculate exact cost = wholeTokens * pricePerToken
+        const exactCost = numTokens * price;
         const change = weiAmount - exactCost;
 
         return { numTokens, exactCost, change };
@@ -264,10 +263,9 @@ export function useFAOQuoter() {
         // Raw contract data
         contractData: parsedData,
 
-        // Quote functions
-        getQuoteForTokens: getQuoteForWei, // Alias for backward compatibility if needed, using new Wei logic
-        getQuoteForWei,
-        getQuoteForEth,
+        // Quote functions (all work with WHOLE tokens, not Wei)
+        getQuoteForTokens, // (wholeTokens) => costWei
+        getQuoteForEth,    // (weiAmount) => { numTokens: wholeTokens, exactCost, change }
         projectPriceAfter,
 
         // Transaction validation

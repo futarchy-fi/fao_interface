@@ -31,12 +31,10 @@ export default function SwapPanel({ onTransactionSuccess }) {
     const { refetch: refetchSubgraph } = useSubgraphData();
     const {
         getQuoteForEth,
-        getQuoteForWei,
+        getQuoteForTokens,
         simulateBuy,
         simulateRagequit,
-        curveParams,
-        quoteAge,
-        isPhase1
+        curveParams
     } = useFAOQuoter();
 
     const [isSimulating, setIsSimulating] = useState(false);
@@ -75,34 +73,34 @@ export default function SwapPanel({ onTransactionSuccess }) {
             }
 
             // BUY MODE: xDAI -> FAO
+            // Contract expects WHOLE tokens for buy(numTokens)
             if (mode === 'BUY') {
                 if (activeField === 'PAY') {
-                    // Exact Input (xDAI) -> Calculate FAO
+                    // Exact Input (xDAI) -> Calculate FAO (whole tokens)
                     if (!payAmount || parseFloat(payAmount) <= 0) return;
                     try {
                         const wei = parseEther(payAmount);
                         const res = getQuoteForEth(wei);
-                        // Receive tokens (formatted whole tokens? Or precise? Contract used to support whole?)
-                        // With new logic, getQuoteForEth returns precise numTokens in wei.
-                        // Display formatted.
-                        setReceiveAmount(formatEther(res.numTokens));
+                        // res.numTokens is now WHOLE tokens
+                        setReceiveAmount(res.numTokens.toString());
                         setQuoteData({
-                            tokens: res.numTokens,
+                            tokens: res.numTokens, // WHOLE tokens for contract
                             costWei: res.exactCost,
                             type: 'BUY'
                         });
                     } catch (e) { console.error(e); }
                 } else {
-                    // Exact Output (FAO) -> Calculate xDAI Cost
+                    // Exact Output (FAO whole tokens) -> Calculate xDAI Cost
                     if (!receiveAmount || parseFloat(receiveAmount) <= 0) return;
                     try {
-                        const tokensWei = parseEther(receiveAmount);
-                        if (tokensWei <= 0n) return;
+                        // User enters whole tokens
+                        const wholeTokens = BigInt(Math.floor(parseFloat(receiveAmount)));
+                        if (wholeTokens <= 0n) return;
 
-                        const costWei = getQuoteForWei(tokensWei);
+                        const costWei = getQuoteForTokens(wholeTokens);
                         setPayAmount(formatEther(costWei));
                         setQuoteData({
-                            tokens: tokensWei,
+                            tokens: wholeTokens, // WHOLE tokens for contract
                             costWei: costWei,
                             type: 'BUY'
                         });
@@ -155,7 +153,7 @@ export default function SwapPanel({ onTransactionSuccess }) {
         // Debounce slightly to avoid rapid updates/loops
         const timer = setTimeout(calculateQuote, 100);
         return () => clearTimeout(timer);
-    }, [activeField, payAmount, receiveAmount, mode, getQuoteForEth, getQuoteForWei, curveParams]);
+    }, [activeField, payAmount, receiveAmount, mode, getQuoteForEth, getQuoteForTokens, curveParams]);
 
 
     // --- HANDLERS ---
