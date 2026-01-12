@@ -10,8 +10,7 @@ import FAOSaleABI from '../abi/FAOSale.json';
 import { FAO_TOKEN_ADDRESS, FAO_SALE_ADDRESS } from '../hooks/useFAOContract';
 
 import { ConnectWallet } from '../components/ConnectWallet';
-import BuyPanel from '../components/BuyPanel';
-import RagequitPanel from '../components/RagequitPanel';
+import SwapPanel from '../components/SwapPanel';
 import { TypewriterText } from '../components/ui/TypewriterText';
 import PhaseCountdown from '../components/PhaseCountdown';
 import ActivityCarousel from '../components/ActivityCarousel';
@@ -36,7 +35,7 @@ const ScrollTypingHeader = ({ text, className = "" }) => {
 };
 
 export default function Dashboard() {
-    const [tradeMode, setTradeMode] = useState('buy');
+    // const [tradeMode, setTradeMode] = useState('buy'); // Removed: SwapPanel handles mode internally
     const [showCurveInfo, setShowCurveInfo] = useState(false);
     const [activeSection, setActiveSection] = useState('manifesto');
     const [isMobile, setIsMobile] = useState(false);
@@ -981,28 +980,8 @@ export default function Dashboard() {
 
                             {/* Main Trade Console */}
                             <div className="flex flex-col border border-white shadow-[0_0_60px_rgba(255,255,255,0.05)] bg-black">
-                                <div className="flex border-b border-white">
-                                    <button
-                                        onClick={() => setTradeMode('buy')}
-                                        className={`flex-1 py-4 font-pixel text-[9px] tracking-widest transition-all ${tradeMode === 'buy'
-                                            ? 'bg-white text-black'
-                                            : 'hover:bg-black/5 opacity-40'
-                                            }`}
-                                    >
-                                        [ SECURE_FAO ]
-                                    </button>
-                                    <button
-                                        onClick={() => setTradeMode('exit')}
-                                        className={`flex-1 py-4 font-pixel text-[9px] tracking-widest transition-all ${tradeMode === 'exit'
-                                            ? 'bg-white text-black'
-                                            : 'hover:bg-black/5 opacity-40'
-                                            }`}
-                                    >
-                                        [ TERMINATE ]
-                                    </button>
-                                </div>
                                 <div className="p-2">
-                                    {tradeMode === 'buy' ? <BuyPanel onTransactionSuccess={onTransactionSuccess} /> : <RagequitPanel onTransactionSuccess={onTransactionSuccess} />}
+                                    <SwapPanel onTransactionSuccess={onTransactionSuccess} />
                                 </div>
                             </div>
 

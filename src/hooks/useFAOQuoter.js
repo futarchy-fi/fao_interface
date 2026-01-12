@@ -196,6 +196,32 @@ export function useFAOQuoter() {
     }, [publicClient, userAddress]);
 
     /**
+     * Simulate a ragequit transaction using staticCall
+     * 
+     * @param {bigint} numTokens - Number of tokens to return
+     * @returns {Promise<{ success: boolean, error?: string }>}
+     */
+    const simulateRagequit = useCallback(async (numTokens) => {
+        if (!publicClient || !userAddress) {
+            return { success: false, error: 'Wallet not connected' };
+        }
+
+        try {
+            await publicClient.simulateContract({
+                address: FAO_SALE_ADDRESS,
+                abi: FAOSaleABI,
+                functionName: 'ragequit',
+                args: [numTokens],
+                account: userAddress
+            });
+            return { success: true };
+        } catch (err) {
+            const reason = err.shortMessage || err.message || 'Unknown error';
+            return { success: false, error: reason };
+        }
+    }, [publicClient, userAddress]);
+
+    /**
      * Project what the price would be after buying N tokens (Phase 1 only)
      * 
      * @param {bigint|number} additionalTokens - Tokens being purchased
@@ -241,6 +267,7 @@ export function useFAOQuoter() {
 
         // Transaction validation
         simulateBuy,
+        simulateRagequit,
 
         // Metadata
         isLoading,
