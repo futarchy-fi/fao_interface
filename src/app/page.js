@@ -883,9 +883,18 @@ export default function Dashboard() {
 
                     {/* RIGHT STICKY SIDEBAR (TRADING) */}
                     < aside className="w-full lg:max-w-[440px] xl:max-w-[480px] lg:sticky lg:top-12 lg:self-start" >
-                        <div className="space-y-8">
+                        <div className="flex flex-col gap-8">
+                            {/* Main Trade Console (priority on desktop) */}
+                            <div className="order-2 lg:order-1 lg:sticky lg:top-20">
+                                <div className="flex flex-col border border-white shadow-[0_0_60px_rgba(255,255,255,0.05)] bg-black">
+                                    <div className="p-2">
+                                        <SwapPanel onTransactionSuccess={onTransactionSuccess} />
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Personal Portfolio Card */}
-                            <div className="p-8 border border-white/20 bg-white/5 relative overflow-hidden group">
+                            <div className="order-1 lg:order-2 p-8 border border-white/20 bg-white/5 relative overflow-hidden group">
                                 <div className="absolute top-0 right-0 p-4 opacity-10 font-pixel text-[40px] pointer-events-none group-hover:opacity-20 transition-opacity uppercase">FAO</div>
 
                                 {/* Blur overlay when not connected */}
@@ -978,14 +987,7 @@ export default function Dashboard() {
                                 </div>
                             </div>
 
-                            {/* Main Trade Console */}
-                            <div className="flex flex-col border border-white shadow-[0_0_60px_rgba(255,255,255,0.05)] bg-black">
-                                <div className="p-2">
-                                    <SwapPanel onTransactionSuccess={onTransactionSuccess} />
-                                </div>
-                            </div>
-
-                            <div className="p-6 border border-white/5 font-mono text-[9px] opacity-20 italic leading-relaxed uppercase tracking-widest">
+                            <div className="order-3 p-6 border border-white/5 font-mono text-[9px] opacity-20 italic leading-relaxed uppercase tracking-widest">
                                 DAO_CLEARANCE_LEVEL: ALPHA // SECURE_SOCKET: ENABLED // BY_OPERATING_THIS_TERMINAL_YOU_ACCEPT_ON_CHAIN_DYNAMICS.
                             </div>
                         </div>
