@@ -242,13 +242,13 @@ export default function SwapPanel({
             {/* Simplified portfolio summary */}
             <div className="grid grid-cols-2 gap-3">
                 <div className="border border-white/10 bg-white/5 p-3">
-                    <div className="text-[9px] font-pixel opacity-30 uppercase mb-2">HOLDINGS</div>
+                    <div className="text-[9px] font-pixel opacity-30 uppercase mb-2 whitespace-nowrap">HOLDINGS</div>
                     <div className="font-mono text-sm font-bold">
                         {holdingsValue ?? '0'}
                     </div>
                 </div>
                 <div className="border border-white/10 bg-white/5 p-3">
-                    <div className="text-[9px] font-pixel opacity-30 uppercase mb-2">AVG_EXIT</div>
+                    <div className="text-[9px] font-pixel opacity-30 uppercase mb-2 whitespace-nowrap">AVG_EXIT</div>
                     <div className="font-mono text-sm font-bold">
                         {exitValue ?? '0'} {exitSymbol ?? NATIVE_SYMBOL}
                     </div>
@@ -267,9 +267,9 @@ export default function SwapPanel({
                 {/* PAY INPUT */}
                 <div className="bg-white/5 p-4 border border-white/10 hover:border-white/20 transition-colors rounded-sm">
                     <div className="flex justify-between mb-2">
-                        <label className="text-[9px] font-pixel opacity-40 uppercase">PAY ({paySymbol})</label>
+                        <label className="text-[9px] font-pixel opacity-40 uppercase whitespace-nowrap">PAY ({paySymbol})</label>
                         {mode === 'SELL' && (
-                            <span className="text-[9px] font-mono opacity-40">BALANCE: ...</span>
+                            <span className="text-[9px] font-mono opacity-40 whitespace-nowrap">BALANCE: ...</span>
                         )}
                     </div>
                     <div className="flex items-center gap-4">
@@ -280,7 +280,7 @@ export default function SwapPanel({
                             onChange={(e) => handlePayChange(e.target.value)}
                             className="bg-transparent text-2xl font-mono w-full focus:outline-none placeholder:text-white/10"
                         />
-                        <span className="font-pixel text-xs bg-white/10 px-2 py-1 rounded">{paySymbol}</span>
+                        <span className="font-pixel text-xs bg-white/10 px-2 py-1 rounded whitespace-nowrap">{paySymbol}</span>
                     </div>
                 </div>
 
@@ -298,9 +298,9 @@ export default function SwapPanel({
                 {/* RECEIVE INPUT */}
                 <div className="bg-white/5 p-4 border border-white/10 hover:border-white/20 transition-colors rounded-sm">
                     <div className="flex justify-between mb-2">
-                        <label className="text-[9px] font-pixel opacity-40 uppercase">RECEIVE ({receiveSymbol})</label>
+                        <label className="text-[9px] font-pixel opacity-40 uppercase whitespace-nowrap">RECEIVE ({receiveSymbol})</label>
                         {mode === 'BUY' && (
-                            <span className="text-[9px] font-mono opacity-40">EST. OUTPUT</span>
+                            <span className="text-[9px] font-mono opacity-40 whitespace-nowrap">EST. OUTPUT</span>
                         )}
                     </div>
                     <div className="flex items-center gap-4">
@@ -313,7 +313,7 @@ export default function SwapPanel({
                             // Actually enabled logic above supports it.
                             className="bg-transparent text-2xl font-mono w-full focus:outline-none placeholder:text-white/10"
                         />
-                        <span className="font-pixel text-xs bg-white/10 px-2 py-1 rounded">{receiveSymbol}</span>
+                        <span className="font-pixel text-xs bg-white/10 px-2 py-1 rounded whitespace-nowrap">{receiveSymbol}</span>
                     </div>
                 </div>
             </div>
@@ -324,7 +324,7 @@ export default function SwapPanel({
                     PRICE: {curveParams.currentPriceFormatted} {NATIVE_SYMBOL}
                 </span>
                 {quoteData && quoteData.type === 'BUY' && (
-                    <span className="hidden sm:inline">
+                    <span className="hidden sm:inline whitespace-nowrap">
                         EXACT_COST: {formatEther(quoteData.costWei)} {NATIVE_SYMBOL}
                     </span>
                 )}
