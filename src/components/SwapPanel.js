@@ -278,7 +278,7 @@ export default function SwapPanel({
                             placeholder="0.00"
                             value={payAmount}
                             onChange={(e) => handlePayChange(e.target.value)}
-                            className="bg-transparent text-2xl font-mono w-full focus:outline-none placeholder:text-white/10"
+                            className="bg-transparent text-2xl font-mono w-full focus:outline-none placeholder:text-white/10 appearance-none"
                         />
                         <span className="font-pixel text-xs bg-white/10 px-2 py-1 rounded whitespace-nowrap">{paySymbol}</span>
                     </div>
@@ -311,7 +311,7 @@ export default function SwapPanel({
                             onChange={(e) => handleReceiveChange(e.target.value)}
                             // For Sell Mode Output (xDAI), we disable direct editing in this MVP to avoid complex reverse calc issues?
                             // Actually enabled logic above supports it.
-                            className="bg-transparent text-2xl font-mono w-full focus:outline-none placeholder:text-white/10"
+                            className="bg-transparent text-2xl font-mono w-full focus:outline-none placeholder:text-white/10 appearance-none"
                         />
                         <span className="font-pixel text-xs bg-white/10 px-2 py-1 rounded whitespace-nowrap">{receiveSymbol}</span>
                     </div>
