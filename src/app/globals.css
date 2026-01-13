@@ -6,6 +6,7 @@
 
   --animate-flicker: flicker 0.1s infinite;
   --animate-scanline: scanline 12s linear infinite;
+  --animate-shine: shine 2.4s linear infinite;
 
   @keyframes flicker {
     0% {
@@ -28,6 +29,16 @@
 
     100% {
       transform: translateY(100%);
+    }
+  }
+
+  @keyframes shine {
+    0% {
+      transform: translateX(-120%);
+    }
+
+    100% {
+      transform: translateX(120%);
     }
   }
 }
@@ -54,6 +65,8 @@ body {
   margin: 0;
   padding: 0;
   transition: background 0.3s, color 0.3s;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 html,
@@ -154,6 +167,23 @@ body {
   transform: scale(0.98);
 }
 
+.shine-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.shine-button::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -30%;
+  width: 60%;
+  height: 200%;
+  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  animation: shine 2.4s linear infinite;
+  pointer-events: none;
+}
+
 /* ICO Mixture Helper */
 .ico-header {
   font-family: var(--font-pixel);
@@ -224,24 +254,48 @@ body {
   transform: translateY(-2px);
 }
 
-@media (max-width: 768px) {
-  .ico-header {
-    font-size: 1.75rem;
-  }
-}
-
-@media (max-width: 640px) {
-  body {
+@media (max-width: 1024px) {
+  html {
     font-size: 14px;
   }
 
-  .terminal-button {
-    padding: 12px 14px;
-    font-size: 0.65rem;
+  body {
+    font-size: 0.875rem;
   }
 
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  label,
+  .font-pixel,
   .ico-header {
-    font-size: 1.5rem;
-    line-height: 1.1;
+    font-size: 1rem !important;
+  }
+
+  .app-scroll .text-6xl,
+  .app-scroll .text-5xl,
+  .app-scroll .text-4xl {
+    font-size: 1.75rem !important;
+  }
+
+  .app-scroll .text-3xl,
+  .app-scroll .text-2xl,
+  .app-scroll .text-xl {
+    font-size: 1.25rem !important;
+  }
+
+  .app-scroll .text-lg,
+  .app-scroll .text-base {
+    font-size: 1rem !important;
+  }
+
+  .app-scroll .text-sm,
+  .app-scroll .text-xs {
+    font-size: 0.875rem !important;
   }
 }
+
+
