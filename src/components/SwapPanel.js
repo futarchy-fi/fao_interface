@@ -37,6 +37,7 @@ export default function SwapPanel({
     const {
         getQuoteForEth,
         getQuoteForTokens,
+        getQuoteForRagequit,
         simulateBuy,
         simulateRagequit,
         curveParams
@@ -114,7 +115,7 @@ export default function SwapPanel({
             }
             // SELL MODE: FAO -> xDAI
             // IMPORTANT: Contract expects WHOLE tokens, not Wei!
-            // It internally does: burnAmount = numTokens * 1e18
+            // Uses pro-rata formula: (treasuryBalance * burnAmount) / effectiveSupply
             else {
                 if (activeField === 'PAY') {
                     // Exact Input (FAO whole tokens) -> Est xDAI
@@ -124,15 +125,14 @@ export default function SwapPanel({
                         const wholeTokens = BigInt(Math.floor(parseFloat(payAmount)));
                         if (wholeTokens <= 0n) return;
 
-                        // Estimate xDAI return: wholeTokens * pricePerToken
-                        // Price is Wei per WHOLE token (e.g., 1e14 = 0.0001 xDAI)
-                        const estReturnWei = wholeTokens * curveParams.currentPrice;
-
-                        setReceiveAmount(formatEther(estReturnWei));
-                        setQuoteData({
-                            tokens: wholeTokens, // WHOLE tokens for contract
-                            estReturnWei: estReturnWei,
-                            type: 'SELL'
+                        // Get accurate pro-rata return from on-chain data
+                        getQuoteForRagequit(wholeTokens).then(result => {
+                            setReceiveAmount(formatEther(result.estReturnWei));
+                            setQuoteData({
+                                tokens: wholeTokens, // WHOLE tokens for contract
+                                estReturnWei: result.estReturnWei,
+                                type: 'SELL'
+                            });
                         });
                     } catch (e) { console.error(e); }
                 } else {
@@ -158,7 +158,7 @@ export default function SwapPanel({
         // Debounce slightly to avoid rapid updates/loops
         const timer = setTimeout(calculateQuote, 100);
         return () => clearTimeout(timer);
-    }, [activeField, payAmount, receiveAmount, mode, getQuoteForEth, getQuoteForTokens, curveParams]);
+    }, [activeField, payAmount, receiveAmount, mode, getQuoteForEth, getQuoteForTokens, getQuoteForRagequit, curveParams]);
 
 
     // --- HANDLERS ---
@@ -209,15 +209,17 @@ export default function SwapPanel({
         }
 
         // --- APPROVAL FLOW (SELL MODE) ---
+        // Note: quoteData.tokens is WHOLE tokens, but ERC20 approve expects Wei
         if (mode === 'SELL') {
-            if (!allowance || allowance < quoteData.tokens) {
+            const tokensInWei = quoteData.tokens * 1000000000000000000n; // Convert to Wei for ERC20
+            if (!allowance || allowance < tokensInWei) {
                 const toastId = toast.loading("APPROVING_FAO...");
                 try {
                     const hash = await walletClient.writeContract({
                         address: FAO_TOKEN_ADDRESS,
                         abi: FAOTokenABI,
                         functionName: 'approve',
-                        args: [FAO_SALE_ADDRESS, quoteData.tokens] // Approve exact amount
+                        args: [FAO_SALE_ADDRESS, tokensInWei] // Approve Wei amount
                     });
                     toast.loading(`APPROVING: ${hash.slice(0, 10)}...`, { id: toastId });
                     await publicClient.waitForTransactionReceipt({ hash });
@@ -307,9 +309,10 @@ export default function SwapPanel({
     // Button Label Calculation
     let actionLabel = isSimulating ? 'SIMULATING...' : (mode === 'BUY' ? 'BUY_FAO' : 'BURN_AND_EXIT');
 
-    // Override label for Approval
+    // Override label for Approval (compare in Wei since allowance is Wei)
     if (mode === 'SELL' && quoteData && quoteData.tokens > 0n) {
-        if (!allowance || allowance < quoteData.tokens) {
+        const tokensInWei = quoteData.tokens * 1000000000000000000n;
+        if (!allowance || allowance < tokensInWei) {
             actionLabel = 'APPROVE_FAO';
         }
     }
@@ -319,13 +322,13 @@ export default function SwapPanel({
             {/* Simplified portfolio summary */}
             <div className="grid grid-cols-2 gap-3">
                 <div className="border border-white/10 bg-white/5 p-3">
-                    <div className="text-[9px] font-pixel opacity-30 uppercase mb-2">HOLDINGS</div>
+                    <div className="text-[9px] font-pixel opacity-30 uppercase mb-2 whitespace-nowrap">HOLDINGS</div>
                     <div className="font-mono text-sm font-bold">
                         {holdingsValue ?? '0'}
                     </div>
                 </div>
                 <div className="border border-white/10 bg-white/5 p-3">
-                    <div className="text-[9px] font-pixel opacity-30 uppercase mb-2">AVG_EXIT</div>
+                    <div className="text-[9px] font-pixel opacity-30 uppercase mb-2 whitespace-nowrap">AVG_EXIT</div>
                     <div className="font-mono text-sm font-bold">
                         {exitValue ?? '0'} {exitSymbol ?? NATIVE_SYMBOL}
                     </div>
@@ -344,7 +347,7 @@ export default function SwapPanel({
                 {/* PAY INPUT */}
                 <div className="bg-white/5 p-4 border border-white/10 hover:border-white/20 transition-colors rounded-sm">
                     <div className="flex justify-between mb-2">
-                        <label className="text-[9px] font-pixel opacity-40 uppercase">PAY ({paySymbol})</label>
+                        <label className="text-[9px] font-pixel opacity-40 uppercase whitespace-nowrap">PAY ({paySymbol})</label>
                         {mode === 'SELL' && (
                             <div className="flex items-center gap-2">
                                 <span className="text-[9px] font-mono opacity-40">
@@ -379,7 +382,7 @@ export default function SwapPanel({
                             }}
                             className="bg-transparent text-2xl font-mono w-full focus:outline-none placeholder:text-white/10"
                         />
-                        <span className="font-pixel text-xs bg-white/10 px-2 py-1 rounded">{paySymbol}</span>
+                        <span className="font-pixel text-xs bg-white/10 px-2 py-1 rounded whitespace-nowrap">{paySymbol}</span>
                     </div>
                 </div>
 
@@ -397,9 +400,9 @@ export default function SwapPanel({
                 {/* RECEIVE INPUT */}
                 <div className="bg-white/5 p-4 border border-white/10 hover:border-white/20 transition-colors rounded-sm">
                     <div className="flex justify-between mb-2">
-                        <label className="text-[9px] font-pixel opacity-40 uppercase">RECEIVE ({receiveSymbol})</label>
+                        <label className="text-[9px] font-pixel opacity-40 uppercase whitespace-nowrap">RECEIVE ({receiveSymbol})</label>
                         {mode === 'BUY' && (
-                            <span className="text-[9px] font-mono opacity-40">EST. OUTPUT</span>
+                            <span className="text-[9px] font-mono opacity-40 whitespace-nowrap">EST. OUTPUT</span>
                         )}
                     </div>
                     <div className="flex items-center gap-4">
@@ -416,7 +419,7 @@ export default function SwapPanel({
                             }}
                             className="bg-transparent text-2xl font-mono w-full focus:outline-none placeholder:text-white/10"
                         />
-                        <span className="font-pixel text-xs bg-white/10 px-2 py-1 rounded">{receiveSymbol}</span>
+                        <span className="font-pixel text-xs bg-white/10 px-2 py-1 rounded whitespace-nowrap">{receiveSymbol}</span>
                     </div>
                 </div>
             </div>
@@ -427,7 +430,7 @@ export default function SwapPanel({
                     PRICE: {curveParams.currentPriceFormatted} {NATIVE_SYMBOL}
                 </span>
                 {quoteData && quoteData.type === 'BUY' && (
-                    <span className="hidden sm:inline">
+                    <span className="hidden sm:inline whitespace-nowrap">
                         EXACT_COST: {formatEther(quoteData.costWei)} {NATIVE_SYMBOL}
                     </span>
                 )}
