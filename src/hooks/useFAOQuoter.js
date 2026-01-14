@@ -347,4 +347,157 @@ export function useFAOQuoter() {
     };
 }
 
+/**
+ * Token Distribution Hook - Fetches on-chain token allocation data
+ * Returns breakdown of FAO token distribution for pie chart visualization
+ */
+export function useTokenDistribution() {
+    const publicClient = usePublicClient();
+
+    const { data, isLoading, refetch, dataUpdatedAt } = useReadContracts({
+        contracts: [
+            // Get the token address
+            {
+                address: FAO_SALE_ADDRESS,
+                abi: FAOSaleABI,
+                functionName: 'TOKEN',
+                chainId: 100,
+            },
+            // Get incentive contract address
+            {
+                address: FAO_SALE_ADDRESS,
+                abi: FAOSaleABI,
+                functionName: 'incentiveContract',
+                chainId: 100,
+            },
+            // Get insider vesting contract address
+            {
+                address: FAO_SALE_ADDRESS,
+                abi: FAOSaleABI,
+                functionName: 'insiderVestingContract',
+                chainId: 100,
+            },
+            // Get phase status
+            {
+                address: FAO_SALE_ADDRESS,
+                abi: FAOSaleABI,
+                functionName: 'initialPhaseFinalized',
+                chainId: 100,
+            },
+        ],
+        query: {
+            refetchInterval: 15000,
+            staleTime: 10000,
+        },
+    });
+
+    // Once we have addresses, fetch token balances
+    const tokenAddress = data?.[0]?.result;
+    const incentiveAddress = data?.[1]?.result;
+    const insiderAddress = data?.[2]?.result;
+    const isPhaseFinalized = data?.[3]?.result ?? false;
+
+    const balanceABI = [{
+        inputs: [{ name: "account", type: "address" }],
+        name: "balanceOf",
+        outputs: [{ type: "uint256" }],
+        stateMutability: "view",
+        type: "function"
+    }, {
+        inputs: [],
+        name: "totalSupply",
+        outputs: [{ type: "uint256" }],
+        stateMutability: "view",
+        type: "function"
+    }];
+
+    const zeroAddress = '0x0000000000000000000000000000000000000000';
+
+    const { data: balances, isLoading: balancesLoading } = useReadContracts({
+        contracts: tokenAddress ? [
+            // Total supply
+            {
+                address: tokenAddress,
+                abi: balanceABI,
+                functionName: 'totalSupply',
+                chainId: 100,
+            },
+            // Treasury balance (FAOSale contract holds FAO tokens)
+            {
+                address: tokenAddress,
+                abi: balanceABI,
+                functionName: 'balanceOf',
+                args: [FAO_SALE_ADDRESS],
+                chainId: 100,
+            },
+            // Incentive balance
+            {
+                address: tokenAddress,
+                abi: balanceABI,
+                functionName: 'balanceOf',
+                args: [incentiveAddress && incentiveAddress !== zeroAddress ? incentiveAddress : FAO_SALE_ADDRESS],
+                chainId: 100,
+            },
+            // Insider balance
+            {
+                address: tokenAddress,
+                abi: balanceABI,
+                functionName: 'balanceOf',
+                args: [insiderAddress && insiderAddress !== zeroAddress ? insiderAddress : FAO_SALE_ADDRESS],
+                chainId: 100,
+            },
+        ] : [],
+        query: {
+            enabled: !!tokenAddress,
+            refetchInterval: 15000,
+            staleTime: 10000,
+        },
+    });
+
+    // Parse and calculate distribution
+    const distribution = useMemo(() => {
+        if (!balances || balances.length < 4) {
+            return {
+                totalSupply: 0n,
+                treasuryBalance: 0n,
+                incentiveBalance: 0n,
+                insiderBalance: 0n,
+                circulatingSupply: 0n,
+            };
+        }
+
+        const totalSupply = balances[0]?.result ?? 0n;
+        const treasuryBalance = balances[1]?.result ?? 0n;
+
+        // Only count incentive/insider if they have separate addresses
+        const incentiveBalance = incentiveAddress && incentiveAddress !== zeroAddress
+            ? (balances[2]?.result ?? 0n)
+            : 0n;
+        const insiderBalance = insiderAddress && insiderAddress !== zeroAddress
+            ? (balances[3]?.result ?? 0n)
+            : 0n;
+
+        // Circulating = total - treasury - incentive - insider
+        const circulatingSupply = totalSupply - treasuryBalance - incentiveBalance - insiderBalance;
+
+        return {
+            totalSupply,
+            treasuryBalance,
+            incentiveBalance,
+            insiderBalance,
+            circulatingSupply,
+        };
+    }, [balances, incentiveAddress, insiderAddress]);
+
+    return {
+        ...distribution,
+        isPhaseFinalized,
+        incentiveAddress,
+        insiderAddress,
+        isLoading: isLoading || balancesLoading,
+        refetch,
+        lastUpdated: dataUpdatedAt ? new Date(dataUpdatedAt) : null,
+    };
+}
+
 export default useFAOQuoter;

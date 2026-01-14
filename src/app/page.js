@@ -20,6 +20,7 @@ import { ConstructionLogo } from '../components/ui/ConstructionLogo';
 import LiveTicker from '../components/LiveTicker';
 import ProtocolStats from '../components/ProtocolStats';
 import ContractCodeViewer from '../components/ContractCodeViewer';
+import TokenDistribution from '../components/TokenDistribution';
 import { useSubgraphData } from '../hooks/useSubgraphData';
 import { useFAOQuoter } from '../hooks/useFAOQuoter';
 import { toast } from 'sonner';
@@ -58,7 +59,8 @@ export default function Dashboard() {
         { id: 'manifesto', label: '01 // GOVERNANCE_ARCHITECTURE' },
         { id: 'intel', label: '02 // PROTOCOL_INTEL' },
         { id: 'audit', label: '03 // TRANSACTION_LOG' },
-        { id: 'governance', label: '04 // PARTICIPATION' }
+        { id: 'treasury', label: '04 // TREASURY' },
+        { id: 'governance', label: '05 // PARTICIPATION' }
     ];
 
     // Fetch live transaction and sale data from subgraph (30s auto-refresh)
@@ -795,6 +797,18 @@ export default function Dashboard() {
                             </div>
                         </section>
 
+                        {/* SECTION: TREASURY / TOKEN DISTRIBUTION */}
+                        <section id="treasury" className="space-y-12 scroll-mt-20">
+                            <div className="space-y-4">
+                                <ScrollTypingHeader text="TOKEN_TREASURY_DISTRIBUTION" className="ico-header px-4 py-2 border border-white/10 inline-block" />
+                                <div className="flex gap-4 items-center">
+                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                    <span className="text-[8px] font-pixel opacity-40 uppercase tracking-[0.4em]">LIVE_ONCHAIN_DATA // RPC_VERIFIED</span>
+                                </div>
+                            </div>
+                            <TokenDistribution />
+                        </section>
+
                         {/* SECTION: SMART CONTRACT SOURCE */}
                         <section id="contracts" className="space-y-12 scroll-mt-20">
                             <div className="space-y-4">
@@ -916,46 +930,46 @@ export default function Dashboard() {
                 {/* Mobile floating button + drawer */}
                 {portalReady && createPortal((
                     <div className="lg:hidden">
-                    <button
-                        type="button"
-                        onClick={() => setTradePanelOpen(true)}
-                        className="fixed w-full z-[2200] border border-white/20 bg-black/80 text-white/80 px-4 py-3 font-pixel text-[9px] tracking-widest shine-button"
-                        style={{ bottom: 'calc(var(--hud-height) + 44px)' }}
-                    >
-                        OPEN_SWAP
-                    </button>
+                        <button
+                            type="button"
+                            onClick={() => setTradePanelOpen(true)}
+                            className="fixed w-full z-[2200] border border-white/20 bg-black/80 text-white/80 px-4 py-3 font-pixel text-[9px] tracking-widest shine-button"
+                            style={{ bottom: 'calc(var(--hud-height) + 44px)' }}
+                        >
+                            OPEN_SWAP
+                        </button>
 
-                    {tradePanelOpen && (
-                        <div className="fixed inset-0 z-[2300] bg-black/70 backdrop-blur-sm">
-                            <div
-                                className="absolute left-0 right-0 bottom-0 border-t border-white/10 bg-black"
-                                style={{ maxHeight: '80dvh' }}
-                            >
-                                <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-                                    <span className="font-pixel text-[9px] tracking-widest">TRADE_PANEL</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => setTradePanelOpen(false)}
-                                        className="font-pixel text-[10px] opacity-60 hover:opacity-100"
-                                    >
-                                        [ CLOSE ]
-                                    </button>
-                                </div>
-                                <div className="p-3 overflow-y-auto" style={{ maxHeight: 'calc(80dvh - 52px)' }}>
-                                    <div className="flex flex-col border border-white shadow-[0_0_60px_rgba(255,255,255,0.05)] bg-black">
-                                        <div className="p-2">
-                                            <SwapPanel
-                                                onTransactionSuccess={onTransactionSuccess}
-                                                holdingsValue={formattedRpcHoldings}
-                                                exitValue={formattedExitValue}
-                                                exitSymbol={nativeSymbol}
-                                            />
+                        {tradePanelOpen && (
+                            <div className="fixed inset-0 z-[2300] bg-black/70 backdrop-blur-sm">
+                                <div
+                                    className="absolute left-0 right-0 bottom-0 border-t border-white/10 bg-black"
+                                    style={{ maxHeight: '80dvh' }}
+                                >
+                                    <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                                        <span className="font-pixel text-[9px] tracking-widest">TRADE_PANEL</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setTradePanelOpen(false)}
+                                            className="font-pixel text-[10px] opacity-60 hover:opacity-100"
+                                        >
+                                            [ CLOSE ]
+                                        </button>
+                                    </div>
+                                    <div className="p-3 overflow-y-auto" style={{ maxHeight: 'calc(80dvh - 52px)' }}>
+                                        <div className="flex flex-col border border-white shadow-[0_0_60px_rgba(255,255,255,0.05)] bg-black">
+                                            <div className="p-2">
+                                                <SwapPanel
+                                                    onTransactionSuccess={onTransactionSuccess}
+                                                    holdingsValue={formattedRpcHoldings}
+                                                    exitValue={formattedExitValue}
+                                                    exitSymbol={nativeSymbol}
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )}
                     </div>
                 ), document.body)}
 
