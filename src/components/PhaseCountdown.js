@@ -67,9 +67,9 @@ export default function PhaseCountdown() {
 
     return (
         <div className="border border-white/20 bg-white/5 p-6 space-y-4">
-            <div className="flex justify-between items-center text-[10px] font-pixel text-white/40 tracking-widest uppercase">
+            <div className="flex flex-col gap-1 text-[10px] font-pixel text-white/40 tracking-widest uppercase sm:flex-row sm:items-center sm:justify-between">
                 <span>_PHASE_0_EXPIRATION</span>
-                <span className={ended || isPhase1 ? 'text-yellow-500' : 'text-white'}>
+                <span className={`${ended || isPhase1 ? 'text-yellow-500' : 'text-white'} sm:text-right`}>
                     {ended || isPhase1 ? 'BONDING_CURVE_ACTIVE' : 'FIXED_PRICE_ACTIVE'}
                 </span>
             </div>

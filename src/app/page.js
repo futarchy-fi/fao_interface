@@ -662,7 +662,7 @@ export default function Dashboard() {
                             {/* Deep Trading Logic */}
                             <div className="p-8 md:p-12 border border-white/5 bg-white/[0.01] space-y-10 md:space-y-12">
                                 <div className="max-w-3xl space-y-6">
-                                    <h3 className="font-pixel text-2xl tracking-tighter uppercase leading-none">SECURED_BY_GNOSIS_CFT</h3>
+                                    <h3 className="font-pixel text-lg tracking-tighter uppercase leading-none">SECURED_BY_GNOSIS_CFT</h3>
                                     <p className="font-mono text-base md:text-lg text-white/50 leading-relaxed uppercase">
                                         SECURED BY THE INDUSTRY-STANDARD GNOSIS CONDITIONAL TOKEN FRAMEWORK (CTF) - THE SAME CRYPTOGRAPHIC ARCHITECTURE PROTECTING BILLIONS IN TVL.
                                     </p>

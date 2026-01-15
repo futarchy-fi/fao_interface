@@ -310,4 +310,34 @@ body {
   }
 }
 
+@media (max-width: 640px) {
+  .app-scroll .font-pixel {
+    font-size: 0.7rem !important;
+    line-height: 1.2;
+    letter-spacing: 0.08em !important;
+  }
+
+  .app-scroll .text-6xl,
+  .app-scroll .text-5xl,
+  .app-scroll .text-4xl {
+    font-size: 1.4rem !important;
+  }
+
+  .app-scroll .text-3xl,
+  .app-scroll .text-2xl,
+  .app-scroll .text-xl {
+    font-size: 1.05rem !important;
+  }
+
+  .app-scroll .text-lg,
+  .app-scroll .text-base {
+    font-size: 0.95rem !important;
+  }
+
+  .app-scroll .text-sm,
+  .app-scroll .text-xs {
+    font-size: 0.75rem !important;
+  }
+}
+
 
