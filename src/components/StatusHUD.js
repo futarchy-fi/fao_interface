@@ -188,7 +188,7 @@ export default function StatusHUD() {
                     <span className="!text-[7px] sm:!text-[8px] font-pixel opacity-30 uppercase tracking-tighter">
                         {isLoading ? 'SYNCING...' : lastSyncedAtUTC ? `SYNCED_${lastSyncedAtUTC}` : 'LIVE_SYNC'}
                     </span>
-                </div>
+                </div>                                                                                                                                                                                                                                                                                                                                                                                                                                  
 
                 {/* Mobile carousel */}
                 <div

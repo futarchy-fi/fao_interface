@@ -27,6 +27,9 @@ export default function SwapPanel({
     const [payAmount, setPayAmount] = useState('');
     const [receiveAmount, setReceiveAmount] = useState('');
 
+    // Liquidity source selection (design-only for now)
+    const [liquiditySource, setLiquiditySource] = useState('CONTRACT');
+
     // Which field controls the calculation?
     const [activeField, setActiveField] = useState('PAY'); // 'PAY' or 'RECEIVE'
 
@@ -305,6 +308,9 @@ export default function SwapPanel({
     // Visual Helpers
     const paySymbol = mode === 'BUY' ? NATIVE_SYMBOL : TOKEN_SYMBOL;
     const receiveSymbol = mode === 'BUY' ? TOKEN_SYMBOL : NATIVE_SYMBOL;
+    const contractPrice = curveParams?.currentPriceFormatted || '0.0001';
+    const basePrice = Number(contractPrice) || 0.0001;
+    const poolPrice = (basePrice * 1.015).toFixed(6);
 
     // Button Label Calculation
     let actionLabel = isSimulating ? 'SIMULATING...' : (mode === 'BUY' ? 'BUY_FAO' : 'BURN_AND_EXIT');
@@ -318,18 +324,65 @@ export default function SwapPanel({
     }
 
     return (
-        <div className="flex flex-col gap-4 w-full relative overflow-hidden p-4 sm:p-6 border transition-colors duration-700 bg-black border-white/10">
+        <div className="swap-panel-mobile flex flex-col gap-3 sm:gap-4 w-full relative overflow-hidden p-3 sm:p-6 border transition-colors duration-700 bg-black border-white/10 text-sm sm:text-base">
+            {/* Route tabs (informative steps) */}
+            <div className="border border-white/10 bg-black/40 p-2 sm:p-3">
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setLiquiditySource('CONTRACT')}
+                        className={`w-1/2 px-2 py-2 text-[9px] font-pixel tracking-widest border transition-all ${liquiditySource === 'CONTRACT'
+                            ? 'bg-white text-black border-white shine-button'
+                            : 'bg-black/40 text-white/60 border-white/10 hover:text-white'
+                            }`}
+                    >
+                        CONTRACT
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setLiquiditySource('POOL')}
+                        className={`w-1/2 px-2 py-2 text-[9px] font-pixel tracking-widest border transition-all ${liquiditySource === 'POOL'
+                            ? 'bg-yellow-400 text-black border-yellow-300 shine-button'
+                            : 'bg-black/40 text-white/60 border-white/10 hover:text-white'
+                            }`}
+                    >
+                        POOL
+                    </button>
+                </div>
+            </div>
+
+            {/* Route info changes with selection */}
+            <div className="border border-white/10 bg-white/5 p-2 sm:p-3 flex items-center justify-between gap-4">
+                <div className="flex flex-col gap-1">
+                    <span className="text-[9px] font-pixel opacity-40 uppercase tracking-widest">ACTIVE_ROUTE</span>
+                    <span className={`text-[10px] font-pixel tracking-widest ${liquiditySource === 'POOL' ? 'text-yellow-300' : 'text-white'}`}>
+                        {liquiditySource}
+                    </span>
+                    {liquiditySource === 'POOL' && (
+                        <span className="text-[8px] font-mono text-yellow-400/80 uppercase">POOL_QUOTE_MOCK</span>
+                    )}
+                </div>
+                <div className="flex flex-col gap-1 text-right">
+                    <span className="text-[8px] font-pixel opacity-30 uppercase">
+                        {liquiditySource === 'POOL' ? 'POOL_PRICE' : 'CONTRACT_PRICE'}
+                    </span>
+                    <span className={`text-[10px] font-mono whitespace-nowrap ${liquiditySource === 'POOL' ? 'text-yellow-300/90' : 'text-white/80'}`}>
+                        {liquiditySource === 'POOL' ? poolPrice : contractPrice} {NATIVE_SYMBOL}
+                    </span>
+                </div>
+            </div>
+
             {/* Simplified portfolio summary */}
-            <div className="grid grid-cols-2 gap-3">
-                <div className="border border-white/10 bg-white/5 p-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                <div className="border border-white/10 bg-white/5 p-2 sm:p-3">
                     <div className="text-[9px] font-pixel opacity-30 uppercase mb-2 whitespace-nowrap">HOLDINGS</div>
-                    <div className="font-mono text-sm font-bold">
+                    <div className="font-mono text-sm sm:text-base font-bold">
                         {holdingsValue ?? '0'}
                     </div>
                 </div>
-                <div className="border border-white/10 bg-white/5 p-3">
+                <div className="border border-white/10 bg-white/5 p-2 sm:p-3">
                     <div className="text-[9px] font-pixel opacity-30 uppercase mb-2 whitespace-nowrap">AVG_EXIT</div>
-                    <div className="font-mono text-sm font-bold">
+                    <div className="font-mono text-sm sm:text-base font-bold">
                         {exitValue ?? '0'} {exitSymbol ?? NATIVE_SYMBOL}
                     </div>
                 </div>
@@ -345,7 +398,7 @@ export default function SwapPanel({
             {/* Inputs Container */}
             <div className="relative flex flex-col gap-2">
                 {/* PAY INPUT */}
-                <div className="bg-white/5 p-4 border border-white/10 hover:border-white/20 transition-colors rounded-sm">
+                <div className="bg-white/5 p-3 sm:p-4 border border-white/10 hover:border-white/20 transition-colors rounded-sm">
                     <div className="flex justify-between mb-2">
                         <label className="text-[9px] font-pixel opacity-40 uppercase whitespace-nowrap">PAY ({paySymbol})</label>
                         {mode === 'SELL' && (
@@ -368,7 +421,7 @@ export default function SwapPanel({
                             </div>
                         )}
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3 sm:gap-4">
                         <input
                             type="text"
                             inputMode="decimal"
@@ -380,7 +433,7 @@ export default function SwapPanel({
                                     handlePayChange(e.target.value);
                                 }
                             }}
-                            className="bg-transparent text-2xl font-mono w-full focus:outline-none placeholder:text-white/10"
+                            className="bg-transparent text-lg sm:text-2xl font-mono w-full focus:outline-none placeholder:text-white/10"
                         />
                         <span className="font-pixel text-xs bg-white/10 px-2 py-1 rounded whitespace-nowrap">{paySymbol}</span>
                     </div>
@@ -398,14 +451,14 @@ export default function SwapPanel({
                 </div>
 
                 {/* RECEIVE INPUT */}
-                <div className="bg-white/5 p-4 border border-white/10 hover:border-white/20 transition-colors rounded-sm">
+                <div className="bg-white/5 p-3 sm:p-4 border border-white/10 hover:border-white/20 transition-colors rounded-sm">
                     <div className="flex justify-between mb-2">
                         <label className="text-[9px] font-pixel opacity-40 uppercase whitespace-nowrap">RECEIVE ({receiveSymbol})</label>
                         {mode === 'BUY' && (
                             <span className="text-[9px] font-mono opacity-40 whitespace-nowrap">EST. OUTPUT</span>
                         )}
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3 sm:gap-4">
                         <input
                             type="text"
                             inputMode="decimal"
@@ -417,7 +470,7 @@ export default function SwapPanel({
                                     handleReceiveChange(e.target.value);
                                 }
                             }}
-                            className="bg-transparent text-2xl font-mono w-full focus:outline-none placeholder:text-white/10"
+                            className="bg-transparent text-lg sm:text-2xl font-mono w-full focus:outline-none placeholder:text-white/10"
                         />
                         <span className="font-pixel text-xs bg-white/10 px-2 py-1 rounded whitespace-nowrap">{receiveSymbol}</span>
                     </div>
@@ -425,10 +478,19 @@ export default function SwapPanel({
             </div>
 
             {/* Quote Info */}
-            <div className="flex justify-between items-center text-[9px] font-mono text-white/30 px-1">
-                <span>
-                    PRICE: {curveParams.currentPriceFormatted} {NATIVE_SYMBOL}
-                </span>
+            <div className="flex flex-col gap-2 text-[9px] font-mono text-white/30 px-1">
+                <div className="flex items-center justify-between">
+                    <span>
+                        PRICE IN CONTRACT: {contractPrice} {NATIVE_SYMBOL}
+                    </span>
+                    <span className="text-yellow-300/80">
+                        PRICE IN POOL: {poolPrice} {NATIVE_SYMBOL}
+                    </span>
+                </div>
+                <div className="flex items-center justify-between text-[8px] font-pixel uppercase tracking-widest">
+                    <span className="text-white/40">PRICE_DELTA</span>
+                    <span className="text-yellow-300/80">{(((Number(poolPrice) / Number(contractPrice || 1)) - 1) * 100).toFixed(2)}% VS CONTRACT</span>
+                </div>
                 {quoteData && quoteData.type === 'BUY' && (
                     <span className="hidden sm:inline whitespace-nowrap">
                         EXACT_COST: {formatEther(quoteData.costWei)} {NATIVE_SYMBOL}
@@ -440,7 +502,7 @@ export default function SwapPanel({
             <button
                 onClick={handleActionClick}
                 disabled={isSimulating || !quoteData}
-                className={`w-full py-6 text-lg font-bold transition-all duration-300 ${mode === 'BUY'
+                className={`w-full py-4 sm:py-6 text-base sm:text-lg font-bold transition-all duration-300 ${mode === 'BUY'
                     ? 'bg-white text-black hover:bg-white/90'
                     : 'bg-red-900/20 text-red-500 border border-red-500/50 hover:bg-red-900/40'
                     } disabled:opacity-50 disabled:cursor-not-allowed uppercase font-pixel tracking-widest`}
@@ -457,8 +519,13 @@ export default function SwapPanel({
                     amount: mode === 'BUY' ? formatEther(quoteData?.costWei || 0n) : payAmount,
                     receiveAmount: mode === 'BUY' ? receiveAmount : formatEther(quoteData?.estReturnWei || 0n),
                     inputSymbol: paySymbol,
-                    outputSymbol: receiveSymbol
+                    outputSymbol: receiveSymbol,
+                    liquiditySource,
+                    contractPrice,
+                    poolPrice,
+                    priceSymbol: NATIVE_SYMBOL
                 }}
+                onRouteSelect={setLiquiditySource}
             />
         </div>
     );

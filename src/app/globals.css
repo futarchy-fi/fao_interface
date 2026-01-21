@@ -311,8 +311,16 @@ body {
 }
 
 @media (max-width: 640px) {
+  html {
+    font-size: 12px;
+  }
+
+  body {
+    font-size: 0.75rem;
+  }
+
   .app-scroll .font-pixel {
-    font-size: 0.7rem !important;
+    font-size: 9px !important;
     line-height: 1.2;
     letter-spacing: 0.08em !important;
   }
@@ -336,7 +344,24 @@ body {
 
   .app-scroll .text-sm,
   .app-scroll .text-xs {
-    font-size: 0.75rem !important;
+    font-size: 0.625rem !important;
+  }
+
+  /* Force swap widget typography to 9-10px on small screens */
+  .swap-panel-mobile,
+  .swap-panel-mobile * {
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+  }
+
+  .swap-panel-mobile .font-pixel {
+    font-size: 9px !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  .swap-panel-mobile input,
+  .swap-panel-mobile button {
+    font-size: 10px !important;
   }
 }
 
